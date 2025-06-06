@@ -8,6 +8,8 @@ from pickle import dumps, loads
 from uuid import uuid4
 
 
+sessions_timeout = 30
+
 
 if not path.exists("data_base"):
     mkdir("data_base")
@@ -245,6 +247,8 @@ class Pending:
 
 
 class Sessions:
+    conut = 0
+
     def __init__(self):
         self.conn = sqlite3.connect("data_base/sessions.db")
         self.cursor = self.conn.cursor()
@@ -255,6 +259,10 @@ class Sessions:
             used_time INTIGER NOT NULL,
             info BLOB
             );	""")
+        
+        Sessions.conut += 1
+        if Sessions.conut % 100 == 0:
+            self.clean_timeouts()
     
     
     def add(self):
@@ -293,6 +301,15 @@ class Sessions:
 
     def update(self, session_id, info):
         self.cursor.execute("UPDATE sessions SET used_time = ?, info = ? WHERE session_id = ?", (time(), dumps(info), session_id))
+        self.conn.commit()
+
+
+    def clean_timeouts(self):
+        data = self.select_all()
+        for i in data:
+            last_used = i[2]
+            if time() - last_used > sessions_timeout:
+                self.delete_row(i[1])
         self.conn.commit()
         
 

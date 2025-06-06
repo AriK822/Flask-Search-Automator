@@ -6,92 +6,122 @@
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icon.png') }}">
   <title>Verification</title>
   <style>
-    :root {
-      --dark: #30333A;
-      --slate: #72676F;
-      --dust: #9A8D96;
-      --lilac: #B0A6A7;
-      --rose: #B79D9B;
-      --choco: #51403D;
-    }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(180deg, var(--dark), var(--choco));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
+  :root {
+    --accent: #ff9100;
+    --bg-dark: #121212;
+    --bg-glass: rgba(255, 255, 255, 0.03);
+    --border-glass: rgba(255, 255, 255, 0.1);
+    --text-light: #f1f1f1;
+    --text-muted: #ccc;
+  }
 
-    .login-container {
-      background: var(--lilac);
-      padding: 2rem;
-      border-radius: 20px;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
-      width: 300px;
-      text-align: center;
-    }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #1e1e1e, #121212);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
 
-    .login-title {
-      text-align: center;
-      margin-bottom: 1.5rem;
-      color: var(--dark);
-      font-size: 1.5rem;
-    }
-    .v-container{
-        display: flex;
-        justify-content: center;
-    }
-    .v-input {
-      width: 20px;
-      padding: 0.75rem;
-      margin-bottom: 1rem;
-      border: none;
-      border-radius: 10px;
-      background-color: var(--dust);
-      color: white;
-      font-size: 1rem;
-      transition: 0.1s linear;
-      text-align: center;
-      align-content: center;
-    }
-    .v-input:hover{
-      background-color: rgb(180, 170, 200);
-    }
+  .login-container {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    padding: 2rem;
+    border-radius: 20px;
+    width: 320px;
+    color: var(--text-light);
+    text-align: center;
+  }
 
-    .login-button {
-      width: 100%;
-      padding: 0.75rem;
-      background-color: var(--rose);
-      border: none;
-      border-radius: 10px;
-      color: white;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background 0.3s ease, width 0.16s linear;;
-    }
+  .login-title {
+    font-size: 1.6rem;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+  }
 
-    .login-button:hover {
-      background-color: var(--slate);
-      width: 90%;
-    }
-    .home-a{
-      color:rgb(86, 33, 4);
-    }
-    .home-a:hover{
-      color: rgb(188, 89, 37);
-      animation: text_shadow 1.4s linear infinite;
-    }
+  .login-input {
+    width: 100%;
+    aspect-ratio: 1/1;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border: none;
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.07);
+    color: var(--text-light);
+    text-align: center;
+    align-content: center;
+    font-size: 2rem;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+  }
 
-    @keyframes text_shadow {
-      0% {text-shadow: none;}
-      50% {text-shadow: 0px 0px 5px rgba(255, 255, 255, 0.6), 0px 0px 15px rgba(255, 255, 255, 0.6), 0px 0px 20px rgba(255, 255, 255, 0.6);}
-      100% {text-shadow: none;}
-    }
+  .login-input::placeholder {
+    color: var(--text-muted);
+  }
 
+  .login-input:hover,
+  .login-input:focus {
+    outline: none;
+    background-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+
+  .login-button {
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(90deg, var(--accent), #ff5722);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .login-button:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(255, 145, 0, 0.4);
+  }
+
+  .security-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .security-img {
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .home-a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: color 0.2s ease;
+  }
+
+  .home-a:hover {
+    color: #ffaa40;
+    text-shadow: 0 0 6px rgba(255, 145, 0, 0.4);
+  }
+
+  #msg {
+    color: #ff7272;
+    margin-top: 0.5rem;
+    font-size: 0.95rem;
+  }
   </style>
 </head>
 <body>
@@ -99,11 +129,11 @@
     <div class="login-title">Verification</div>
     <p>A verification code was sent to {{ username }}</p>
 
-    <div class="v-container">
-        <input class="v-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" id="n1" autocomplete="off">
-        <input class="v-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" id="n2" autocomplete="off">
-        <input class="v-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" id="n3" autocomplete="off">
-        <input class="v-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" id="n4" autocomplete="off">
+    <div class="security-box">
+        <input class="login-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" id="n1" autocomplete="off">
+        <input class="login-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" id="n2" autocomplete="off">
+        <input class="login-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" id="n3" autocomplete="off">
+        <input class="login-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" id="n4" autocomplete="off">
     </div>
 
     <p id="msg"></p><br>
