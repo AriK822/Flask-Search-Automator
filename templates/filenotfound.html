@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icon.png') }}">
+    <title>FNF</title>
+<style>
+    body{
+        font-family: Arial, Helvetica, sans-serif;
+        color:white;
+        font-size: large;
+        background:rgb(40, 40, 40);
+        text-align: center;
+    }
+    a{
+      color: gray;
+    }
+</style>
+</head>
+<body style="font-family: Arial, Helvetica, sans-serif;">
+    <h1>Linkedin search automator</h1><hr>
+    <h2>Error: </h2>
+    <h3>File does not exist, or it's either deleted or currupted.</h3><br>
+    <a href="/" style="
+    border: 2px solid rgb(202, 202, 202);
+    border-radius: 4px;
+    text-decoration: none;
+    padding:5px;
+    color:rgb(255, 255, 255);
+    background: #4d4d4d;
+    ">
+    Back to home page</a><br><br><br>
+
+    <p>If you believe this is a mistake, please contact us at: <br><a id="email" style="text-decoration: underline; cursor: pointer;" onclick="copy()">kianiarman91@gmail.com</a></p>
+
+<script>
+  function copy(){
+    var container = document.getElementById("email");
+    navigator.clipboard.writeText(container.innerHTML);
+
+    alert("copied " + container.innerHTML)
+  }
+</script>
+
+</body>
+</html>

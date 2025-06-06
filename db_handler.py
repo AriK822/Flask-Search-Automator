@@ -1,0 +1,272 @@
+import sqlite3
+from os import urandom, path, mkdir
+from hashlib import sha256
+from string import ascii_letters
+from time import time, sleep
+from os import remove, listdir
+
+
+
+if not path.exists("data_base"):
+    mkdir("data_base")
+
+
+def clear_cache():
+    files = listdir("cache")
+    if len(files) > 2:
+        files.sort(key = lambda x: path.getmtime(f"cache/{x}"))
+        for file in files[:-2]:
+            remove(f"cache/{file}")
+
+
+def clear_captcha_cache():
+    files = listdir("static/captcha")
+    if len(files) > 2:
+        files.sort(key = lambda x: path.getmtime(f"static/captcha/{x}"))
+        for file in files[:-2]:
+            remove(f"static/captcha/{file}")
+
+
+class Users:
+    def __init__(self):
+        self.conn = sqlite3.connect("data_base/users.db")
+        self.cursor = self.conn.cursor()
+
+        self.cursor.execute("""CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            username TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            salt TEXT NOT NULL
+            );	""")
+    
+    
+    def add(self, username, password):
+        salt = urandom(16)
+        hashed_password = sha256(salt + password.encode()).hexdigest()
+        self.cursor.execute("INSERT INTO users (username, password, salt) VALUES (?, ?, ?)", (username, hashed_password, salt))
+        self.conn.commit()
+
+    
+    def select_all(self):
+        self.cursor.execute("SELECT * FROM users ")
+        data = self.cursor.fetchall()
+        return data
+    
+
+    def delete_all(self):
+        self.cursor.execute("DELETE FROM users")
+        self.conn.commit()
+
+
+    def update(self, username, password):
+        salt = urandom(16)
+        hashed_password = sha256(salt + password.encode()).hexdigest()
+        self.cursor.execute("UPDATE users SET password = ?, salt = ? WHERE username = ?", (hashed_password, salt, username))
+        self.conn.commit()
+    
+
+    def delete_row(self, username):
+        self.cursor.execute("DELETE FROM users WHERE username = ?", (username, ))
+        self.conn.commit()
+
+
+    def select_row(self, username):
+        self.cursor.execute("SELECT * FROM users WHERE username = ?", (username, ))
+        data = self.cursor.fetchone()
+        return data
+
+
+    def login(self, username, password):
+        data = self.select_row(username)
+        if not data:
+            return (False, "Username not found!")
+        salt = data[3]
+        hashed_password = sha256(salt + password.encode()).hexdigest()
+        if data[2] == hashed_password:
+            return (True, "Welcome back!")
+        else:
+            return (False, "Password not correct")
+        
+
+    def signup(self, username:str, password:str) -> tuple:
+        result = self.is_valid(username, password)
+        if result[0]:
+            self.add(username, password)
+        return result
+        
+
+    def is_valid(self, username:str, password:str) -> tuple:
+        if username.strip() == "":
+            return (False, "Username cannot be empty!")
+        if password.strip() == "":
+            return (False, "Password cannot be empty!")
+        if len(username) < 4:
+            return (False, "Username must be atleast 4 characters long!")
+        if len(password) < 8:
+            return (False, "Password must be atleast 8 characters long!")
+        if len(username) > 50:
+            return (False, "Username can be at most 50 characters long!")
+        if len(password) > 16:
+            return (False, "Password can be at most 20 characters long!")
+        if ' ' in username:
+            return (False, "Username cannot contain spaces!")
+        if ' ' in password:
+            return (False, "Password cannot contain spaces!")
+        if all(map(lambda x:x in '0123456789', password)):
+            return (False, "Password must contain atleast one character!")
+        if all(map(lambda x:x in ascii_letters, password)):
+            return (False, "Password must contain atleast one number!")
+        if "@gmail.com" not in username:
+            return (False, "Email not valid or not supported.")
+
+        data = self.select_row(username)
+        if not data:
+            return (True, "Account created!")
+        else:
+            return (False, "Account already exists!")
+
+
+    def __str__(self):
+        return str(self.select_all())
+    
+
+
+class CsvFiles:
+    def __init__(self):
+        self.conn = sqlite3.connect("data_base/file_locations.db")
+        self.cursor = self.conn.cursor()
+
+        self.cursor.execute("""CREATE TABLE IF NOT EXISTS files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            username TEXT NOT NULL,
+            file_name TEXT NOT NULL UNIQUE,
+            job TEXT NOT NULL,
+            location TEXT NOT NULL
+            );	""")
+    
+    
+    def add(self, username, file_name, job, location):
+        self.cursor.execute("INSERT INTO files (username, file_name, job, location) VALUES (?, ?, ?, ?)", (username, file_name, job, location))
+        self.conn.commit()
+
+    
+    def select_all(self):
+        self.cursor.execute("SELECT * FROM files ")
+        data = self.cursor.fetchall()
+        return data
+    
+
+    def delete_all(self):
+        self.cursor.execute("DELETE FROM files")
+        self.conn.commit()
+    
+
+    def delete_row(self, job, location):
+        self.cursor.execute("DELETE FROM files WHERE job = ? AND location = ?", (job, location))
+        self.conn.commit()
+
+
+    def delete_user(self, username):
+        self.cursor.execute("DELETE FROM files WHERE username = ?", (username,))
+        self.conn.commit()
+
+
+    def select_row(self, job, location):
+        self.cursor.execute("SELECT * FROM files WHERE job = ? AND location = ?", (job, location))
+        data = self.cursor.fetchall()
+        return data
+    
+
+    def count(self, username):
+        self.cursor.execute("SELECT * FROM files WHERE username = ?", (username, ))
+        data = self.cursor.fetchall()
+        return len(data)
+    
+    
+    def fetch(self, username):
+        self.cursor.execute("SELECT * FROM files WHERE username = ?", (username, ))
+        data = self.cursor.fetchall()
+        return data
+
+
+    def __str__(self):
+        return str(self.select_all())
+    
+
+
+pending = []
+
+class Pending:
+    def __init__(self, timeout = 120):
+        delete_users = []
+
+        for user in pending:
+            if time() - user["sent_time"] > timeout:
+                delete_users.append(user)
+
+        for user in delete_users:
+            pending.remove(user)
+
+    
+    def add(self, username:str, password:str, auth:int):
+        for user in pending:
+            if user["username"] == username:
+                return False
+
+        pending.append({'username':username, 'password':password, 'auth':auth, 'sent_time':time()})
+        return True
+
+
+    def get(self, username:str):
+        for user in pending:
+            if user["username"] == username:
+                return user
+        return None
+    
+
+    def remove(self, username:str):
+        for user in pending:
+            if user["username"] == username:
+                pending.remove(user)
+                return True
+        return False
+
+
+    def __str__(self):
+        return str(pending)
+
+
+
+if __name__ == "__main__":
+    # handler = Users()
+    # handler.delete_all()
+    # handler.add("Arik", "12315")
+    # handler.update("Arik", "1")
+    # print(handler.login("Arik", "1"))
+    # handler.delete_all()
+    # print(handler)
+    pass
+
+
+if __name__ == "__main__":
+    # handler = CsvFiles()
+    # handler.add("Ari", "assss", "jj", "bb")
+    # handler.delete_row("jj", "bb")
+    # print(handler.select_row("jj", "bb"))
+    # print(handler)
+    # print(handler.count("Ari"))
+    # count = handler.count("Arik-808") + 1
+    # print(count)
+    # print(handler.fetch("AriK_808"))
+    pass
+
+
+if __name__ == "__main__":
+    # Pending().add("Arik", "123", 123)
+    # print(Pending())
+    # sleep(1)
+    # print(Pending(2))
+    # sleep(1.1)
+    # print(Pending(2))
+    # clear_captcha_cache()
+    pass

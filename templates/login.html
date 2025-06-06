@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icon.png') }}">
+  <title>Login</title>
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+  :root {
+    --accent: #ff9100;
+    --bg-dark: #121212;
+    --bg-glass: rgba(255, 255, 255, 0.03);
+    --border-glass: rgba(255, 255, 255, 0.1);
+    --text-light: #f1f1f1;
+    --text-muted: #ccc;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #1e1e1e, #121212);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  .login-container {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    padding: 2rem;
+    border-radius: 20px;
+    width: 320px;
+    color: var(--text-light);
+    text-align: center;
+  }
+
+  .login-title {
+    font-size: 1.6rem;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+  }
+
+  .login-input {
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border: none;
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.07);
+    color: var(--text-light);
+    font-size: 1rem;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .login-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .login-input:hover,
+  .login-input:focus {
+    outline: none;
+    background-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+
+  .login-button {
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(90deg, var(--accent), #ff5722);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .login-button:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(255, 145, 0, 0.4);
+  }
+
+  .security-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .security-img {
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .home-a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: color 0.2s ease;
+  }
+
+  .home-a:hover {
+    color: #ffaa40;
+    text-shadow: 0 0 6px rgba(255, 145, 0, 0.4);
+  }
+
+  #msg {
+    color: #ff7272;
+    margin-top: 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-title">Welcome back!</div>
+    <input id="username" type="email" inputmode="email" class="login-input" placeholder="Email">
+    <input id="password" type="password" class="login-input" placeholder="Password" autocomplete="new-password">
+
+    <p id="msg" style="text-align: center;"></p>
+
+    <button class="login-button" onclick="log_in_request()">Login</button><br><br>
+    <a href="/signup" class="home-a">Don't have an account? sign up</a><br>
+    <a href="/" class="home-a">Back to home page</a>
+  </div>
+
+<p id="token" style="display: none;">{{ token }}</p>
+
+<script>
+
+function is_valid(username, password) {
+  username = username.trim();
+  password = password.trim();
+
+  if (username === "") {return [false, "Username cannot be empty!"];}
+  if (password === "") {return [false, "Password cannot be empty!"];}
+  if (username.length < 4) {return [false, "Username must be at least 4 characters long!"];}
+  if (password.length < 8) {return [false, "Password must be at least 8 characters long!"];}
+  if (username.length > 50) {return [false, "Username can be at most 50 characters long!"];}
+  if (password.length > 20) {return [false, "Password can be at most 20 characters long!"];}
+  if (username.includes(" ")) {return [false, "Username cannot contain spaces!"];}
+  if (password.includes(" ")) {return [false, "Password cannot contain spaces!"];}
+  if (/^\d+$/.test(password)) {return [false, "Password must contain at least one character!"];}
+  if (/^[a-zA-Z]+$/.test(password)) {return [false, "Password must contain at least one number!"];}
+  if (!username.includes("@gmail.com")) {return [false, "Email not valid or not supported."];}
+  return [true, "OK"];
+}
+
+
+
+  async function log_in_request(){
+    let username_value = document.getElementById("username").value;
+    let password_value = document.getElementById("password").value;
+
+    let js_test = is_valid(username_value, password_value)
+    if (js_test[0] == false){
+      document.getElementById("msg").innerHTML = js_test[1];
+      return
+    }
+
+    let response = await fetch("/login", {
+      method: "POST",
+      headers: {
+        "Content-type": "application/json",
+      },
+      body: JSON.stringify({
+        username : username_value,
+        password : password_value,
+        token : document.getElementById("token").innerHTML,
+      })
+
+    })
+    let result = await response.json();
+    document.getElementById("msg").innerHTML = result.msg
+    if (result.success == true){window.location.replace("/pp");}
+  }
+
+
+</script>
+
+</body>
+</html>

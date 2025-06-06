@@ -1,0 +1,5 @@
+/__pycache__
+.env
+/saved_csv
+/data_base
+/cache

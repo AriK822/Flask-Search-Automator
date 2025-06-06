@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icon.png') }}">
+  <title>Personal Page</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #1e1e1e, #121212);
+      color: #f1f1f1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin-top: 40px;
+      font-size: 2.2rem;
+      color: #ffffff;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #444;
+      width: 90%;
+      margin: 30px auto;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(15px);
+      border-radius: 16px;
+      padding: 30px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .search-input {
+      width: 100%;
+      text-align: center;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: none;
+      border-radius: 12px;
+      background: #2c2c2c;
+      color: white;
+      font-size: 1rem;
+      transition: border 0.2s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border: 2px solid #ff9100;
+    }
+
+    .search-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(90deg, #ff9100, #ff5722);
+      color: white;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .search-btn:hover {
+      transform: scale(1.03);
+      box-shadow: 0 0 15px rgba(255, 145, 0, 0.5);
+    }
+
+    .bouncing-dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      background: #ff9100;
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out;
+    }
+
+    .dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    .msg-container {
+      text-align: center;
+      color: #ff5252;
+      font-weight: 600;
+      margin-top: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #444;
+      text-align: center;
+    }
+
+    th {
+      background-color: #1e1e1e;
+      color: #ff9100;
+    }
+
+    td a {
+      color: #42a5f5;
+      text-decoration: none;
+    }
+
+    td a:hover {
+      text-decoration: underline;
+    }
+
+    .logout-btn {
+      margin: 12px 0;
+      width: 100%;
+      padding: 10px;
+      background: #e53935;
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .logout-btn:hover {
+      background: #d32f2f;
+    }
+
+    @media screen and (min-width: 768px) {
+      .container {
+        width: 70%;
+      }
+    }
+
+    @media screen and (min-width: 1024px) {
+      .container {
+        width: 50%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Account {{user}}</h1>
+  <hr />
+  <div class="container">
+    <input class="search-input" id="job" placeholder="Job">
+    <input class="search-input" id="location" placeholder="Location">
+    <button class="search-btn" id="search-btn" onclick="search_job()">Search</button>
+    <div class="bouncing-dots" id="loading-animation" style="display: none;">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+    <p class="msg-container" id="msg-container" style="display: none;">My message</p>
+
+    <h2 style="margin-top: 40px; text-align: center;">Search History</h2>
+    <table id="view_table">
+      <tr>
+        <th>Job</th>
+        <th>Location</th>
+        <th>Link</th>
+      </tr>
+    </table>
+
+    <button class="logout-btn" onclick="logout()">Log out</button>
+    <button class="logout-btn" onclick="window.location.replace('/')">Home Page</button>
+    <button class="logout-btn" onclick="delete_account()">Delete Account</button>
+  </div>
+
+  <p id="csrf-token" style="display: none;">{{ token }}</p>
+
+  <script>
+    load_files();
+
+    async function load_files() {
+      let response = await fetch("/load_files", {
+        method: "POST",
+        headers: { "Content-type": "application/json" },
+        body: JSON.stringify({ token: document.getElementById("csrf-token").innerHTML })
+      });
+
+      let result = await response.json();
+      let data = result.data;
+      let view_table = document.getElementById("view_table");
+
+      for (let row_data of data) {
+        let row = document.createElement("tr");
+
+        let job = document.createElement("td");
+        job.innerText = row_data[3];
+
+        let loc = document.createElement("td");
+        loc.innerText = row_data[4];
+
+        let link = document.createElement("td");
+        let a = document.createElement("a");
+        a.innerText = row_data[2];
+        a.href = "/pp/" + row_data[2];
+        link.appendChild(a);
+
+        row.appendChild(job);
+        row.appendChild(loc);
+        row.appendChild(link);
+        view_table.appendChild(row);
+      }
+    }
+
+    async function search_job() {
+      document.getElementById("msg-container").style.display = "none";
+      document.getElementById("loading-animation").style.display = "flex";
+
+      let response = await fetch("/pp", {
+        method: "POST",
+        headers: { "Content-type": "application/json" },
+        body: JSON.stringify({
+          job: document.getElementById("job").value,
+          location: document.getElementById("location").value,
+          token: document.getElementById("csrf-token").innerHTML
+        })
+      });
+
+      let result = await response.json();
+      if (result.success) {
+        window.location.replace(result.msg);
+      } else {
+        document.getElementById("loading-animation").style.display = "none";
+        document.getElementById("msg-container").style.display = "block";
+        document.getElementById("msg-container").innerText = result.msg;
+      }
+    }
+
+    async function logout() {
+      if (confirm("Are you sure you want to logout?")) {
+        let response = await fetch("/logout", {
+          method: "POST",
+          headers: { "Content-type": "application/json" },
+          body: JSON.stringify({ token: document.getElementById("csrf-token").innerHTML })
+        });
+
+        let result = await response.json();
+        if (result.success) {
+          window.location.replace("/login");
+        }
+      }
+    }
+
+    async function delete_account() {
+      if (confirm("Delete account?")) {
+        await fetch("/pp", {
+          method: "DELETE",
+          headers: { "Content-type": "application/json" },
+          body: JSON.stringify({ token: document.getElementById("csrf-token").innerHTML })
+        });
+        window.location.replace("/");
+      }
+    }
+  </script>
+</body>
+</html>

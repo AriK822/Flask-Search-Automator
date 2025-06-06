@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icon.png') }}">
+  <title>Results</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #1e1e1e, #121212);
+      color: #f1f1f1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin-top: 40px;
+      font-size: 2rem;
+      text-align: center;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #444;
+      width: 90%;
+      margin: 30px auto;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(15px);
+      border-radius: 16px;
+      padding: 30px;
+      width: 90%;
+      max-width: 1000px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #444;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+
+    th {
+      background-color: #1e1e1e;
+      color: #ff9100;
+    }
+
+    td a, th a {
+      display: inline-block;
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+      color: orange;
+    }
+
+    td a:hover, th a:hover {
+      text-decoration: underline;
+      color: rgb(255, 211, 129);
+    }
+
+    .download-links {
+      display: inline-block;
+      margin: 10px 5px;
+      padding: 12px 20px;
+      background: linear-gradient(90deg, #7b1fa2, #ab47bc);
+      color: white;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .download-links:hover {
+      background: white;
+      color: #7b1fa2;
+      cursor: pointer;
+    }
+
+    a.download-links:active {
+      transform: scale(0.97);
+    }
+
+    .back-link {
+      background: #3949ab;
+      margin-bottom: 20px;
+    }
+
+    .back-link:hover {
+      background: white;
+      color: #3949ab;
+    }
+
+    @media screen and (max-width: 768px) {
+      table th, table td {
+        font-size: 0.85rem;
+        padding: 8px;
+      }
+
+      .download-links {
+        padding: 10px 14px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>{{user}}<br><small style="color:#aaa;">File: {{ filename }}</small></h1>
+  <hr>
+
+  <a class="download-links back-link" href="/pp">← Back to History</a>
+
+  <div class="container">
+    <table id="view_table">
+      <tr>
+        <th>Index</th>
+        <th>Title</th>
+        <th>Company</th>
+        <th>Location</th>
+        <th>Link</th>
+      </tr>
+      {% for row in data %}
+      <tr>
+        {% for text in row[:-1] %}
+        <td>{{ text }}</td>
+        {% endfor %}
+        <td><a href="{{ row[-1] }}" target="_blank">Open link</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    <div style="margin-top: 40px; text-align: center;">
+      <a href="/download/csv/{{ filename }}" class="download-links"><b>Download CSV</b></a>
+      <a href="/download/excel/{{ filename }}" class="download-links"><b>Download Excel</b></a>
+      <a href="/download/html/{{ filename }}" class="download-links"><b>Download HTML</b></a>
+      <a href="/download/json/{{ filename }}" class="download-links"><b>Download JSON</b></a>
+      <a onclick="window.print()" class="download-links"><b>Print / PDF</b></a>
+    </div>
+  </div>
+
+  <br><br>
+</body>
+</html>
