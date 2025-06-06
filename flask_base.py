@@ -235,6 +235,7 @@ def load_result(filename):
     try:
         data = DataFethcher(filename).fetch()
     except FileNotFoundError:
+        CsvFiles().delete_row(filename)
         return render_template("filenotfound.html")
     
     return render_template("result.html", user=g.session["username"], data = data, filename=filename)

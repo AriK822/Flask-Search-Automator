@@ -1,4 +1,4 @@
-from os import getenv, path, mkdir
+from os import getenv, path, mkdir, remove, listdir
 from dotenv import load_dotenv
 from string import ascii_lowercase
 from random import randint
@@ -7,7 +7,6 @@ from smtplib import SMTP_SSL
 from email.mime.text import MIMEText
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from cryptography.fernet import Fernet
-from db_handler import clear_captcha_cache
 
 
 
@@ -94,6 +93,7 @@ class EmailSender:
 
 
 
+
 fernet = Fernet(Fernet.generate_key())
 
 def encrypt_code(text:str) -> str:
@@ -129,6 +129,7 @@ def generate_captcha_image(id) -> str:
 
     image = image.filter(ImageFilter.GaussianBlur(1))
 
+    from db_handler import clear_captcha_cache
     clear_captcha_cache()
     image.save(f"static/captcha/{id}.png")
     return text
@@ -139,4 +140,6 @@ if __name__ == "__main__":
     # code = generate_captcha_image("192.168.0.21")
     # print(code)
     # EmailSender().send("armankiani1384@gmail.com", generate_auth())
+    a = encrypt_code("kianiarman91@gmail.com")
+    print(decrypt_code(a))
     pass

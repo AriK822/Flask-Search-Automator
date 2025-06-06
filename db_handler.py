@@ -6,9 +6,11 @@ from time import time, sleep
 from os import remove, listdir
 from pickle import dumps, loads
 from uuid import uuid4
+from security import encrypt_code, decrypt_code
 
 
-sessions_timeout = 30
+sessions_timeout = 7 * (24 * 60 * 60)
+pending_timeout = 120
 
 
 if not path.exists("data_base"):
@@ -170,12 +172,16 @@ class CsvFiles:
         self.conn.commit()
     
 
-    def delete_row(self, job, location):
-        self.cursor.execute("DELETE FROM files WHERE job = ? AND location = ?", (job, location))
+    def delete_row(self, filename):
+        self.cursor.execute("DELETE FROM files WHERE file_name = ?", (filename, ))
         self.conn.commit()
 
 
     def delete_user(self, username):
+        files = self.fetch(username)
+        for file in files:
+            remove(f"saved_csv/{file[2]}.csv")
+        print(files)
         self.cursor.execute("DELETE FROM files WHERE username = ?", (username,))
         self.conn.commit()
 
@@ -206,11 +212,11 @@ class CsvFiles:
 pending = []
 
 class Pending:
-    def __init__(self, timeout = 120):
+    def __init__(self):
         delete_users = []
 
         for user in pending:
-            if time() - user["sent_time"] > timeout:
+            if time() - user["sent_time"] > pending_timeout:
                 delete_users.append(user)
 
         for user in delete_users:
@@ -221,7 +227,8 @@ class Pending:
         for user in pending:
             if user["username"] == username:
                 return False
-
+            
+        password = encrypt_code(password)
         pending.append({'username':username, 'password':password, 'auth':auth, 'sent_time':time()})
         return True
 
@@ -229,7 +236,13 @@ class Pending:
     def get(self, username:str):
         for user in pending:
             if user["username"] == username:
-                return user
+                decrypted_pass = decrypt_code(user["password"])
+                return {
+                    'username':  user['username'],
+                    'password':  decrypted_pass,
+                    'auth':      user['auth'],
+                    'sent_time': user['sent_time']
+                }
         return None
     
 
@@ -355,8 +368,15 @@ if __name__ == "__main__":
 
 
 if __name__ == "__main__":
-    handler = Sessions()
+    # handler = Sessions()
     # handler.add()
     # print(handler.get("234ew"))
-    print(handler.select_all())
+    # Pending().add("adadf", "ADFA", 123)
+    # a = Pending().get("adadf")
+    # a = Pending().get("adadf")
     pass
+
+
+if __name__ == "__main__":
+    handler = CsvFiles()
+    print(handler.fetch("armankiani1384@gmail.com"))
