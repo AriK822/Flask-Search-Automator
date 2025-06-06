@@ -4,6 +4,8 @@ from hashlib import sha256
 from string import ascii_letters
 from time import time, sleep
 from os import remove, listdir
+from pickle import dumps, loads
+from uuid import uuid4
 
 
 
@@ -25,6 +27,11 @@ def clear_captcha_cache():
         files.sort(key = lambda x: path.getmtime(f"static/captcha/{x}"))
         for file in files[:-2]:
             remove(f"static/captcha/{file}")
+
+
+def generate_session_id() -> str:
+    return str(uuid4())
+
 
 
 class Users:
@@ -234,6 +241,63 @@ class Pending:
 
     def __str__(self):
         return str(pending)
+    
+
+
+class Sessions:
+    def __init__(self):
+        self.conn = sqlite3.connect("data_base/sessions.db")
+        self.cursor = self.conn.cursor()
+
+        self.cursor.execute("""CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            session_id TEXT NOT NULL UNIQUE,
+            used_time INTIGER NOT NULL,
+            info BLOB
+            );	""")
+    
+    
+    def add(self):
+        session_id = generate_session_id()
+        self.cursor.execute("INSERT INTO sessions (session_id, used_time, info) VALUES (?, ?, ?)", (session_id, time(), dumps({})))
+        self.conn.commit()
+        return session_id
+
+    
+    def select_all(self):
+        self.cursor.execute("SELECT * FROM sessions ")
+        data = self.cursor.fetchall()
+        return data
+    
+
+    def delete_all(self):
+        self.cursor.execute("DELETE FROM sessions")
+        self.conn.commit()
+    
+
+    def delete_row(self, session_id:str):
+        self.cursor.execute("DELETE FROM sessions WHERE session_id = ?", (session_id, ))
+        self.conn.commit()
+    
+
+    def get(self, session_id):
+        self.cursor.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id, ))
+        data = self.cursor.fetchone()
+        if data:
+            raise ValueError("session does not exist")
+        self.cursor.execute("UPDATE users SET used_time = ? WHERE session_id = ?", (time(), session_id))
+        self.conn.commit()
+        return loads(data[3])
+    
+
+    def update(self, session_id, info):
+        self.cursor.execute("UPDATE users SET used_time = ?, info = ? WHERE session_id = ?", (time(), dumps(info), session_id))
+        self.conn.commit()
+        
+
+    def __str__(self):
+        return str(self.select_all())
+    
 
 
 
@@ -269,4 +333,12 @@ if __name__ == "__main__":
     # sleep(1.1)
     # print(Pending(2))
     # clear_captcha_cache()
+    pass
+
+
+if __name__ == "__main__":
+    handler = Sessions()
+    handler.add()
+    print(handler.get("234ew"))
+    print(handler.select_all())
     pass

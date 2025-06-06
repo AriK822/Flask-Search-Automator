@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, jsonify, session, redirect, send_file
+from flask import Flask, request, render_template, jsonify, session, redirect, send_file, g
 from datetime import timedelta
 from time import time
 from db_handler import Users, CsvFiles, Pending
@@ -17,46 +17,41 @@ app.permanent_session_lifetime = timedelta(days=7)
 
 @app.before_request
 def perminant_sessions():
-    if 'username' in session:
-        session.permanent = True
-    else:
-        session.permanent = False
+    session.permanent = True
+
+
+@app.before_request
+def flood_handler():
+    if flood(request.remote_addr):
+        return render_template("flood.html")
+    
+
+@app.before_request
+def csrf_handler():
+    if request.method in ["POST", "DELETE"]:
+        if request.get_json()["token"] != session["token"]: return jsonify()
 
 
 
 @app.route('/', methods=['GET', 'POST'])
 def home_page():
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-        
     return render_template("home.html")
 
 
 @app.route('/about')
 def about():
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     return render_template('about.html')
 
 
 @app.route('/sources')
 def sources():
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     return render_template('sources.html')
     
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     if request.method == 'POST':
         data = request.get_json()
-
-        if data["token"] != session["token"]: return jsonify()
 
         username = data["username"]
         password = data["password"]
@@ -79,13 +74,9 @@ def login():
 
 @app.route('/signup', methods=['GET', 'POST'])
 def sgin_up():
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     if request.method == "POST":
         data = request.get_json()
 
-        if data["token"] != session["token"]: return jsonify()
         if data["captcha"] != decrypt_code(session["captcha"]): 
             return jsonify({"success": False, "msg": "Security code invalid!"})
         
@@ -123,12 +114,7 @@ def sgin_up():
 
 @app.route('/verification', methods=['GET', 'POST'])
 def verification():
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     if request.method == "POST":
-        if session["token"] != request.get_json()["token"]: return jsonify()
-
         user = Pending().get(session["pending"])
         if not user:
             return jsonify({"redirect": True, "msg": "/signin"})
@@ -160,9 +146,6 @@ def verification():
 
 @app.route('/pp', methods=['GET', 'POST', 'DELETE'])
 def personal_page():
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     if "username" not in session:
         return redirect("/login")
     
@@ -170,9 +153,6 @@ def personal_page():
         data = request.get_json()
         job = data["job"].strip()
         location = data["location"].strip()
-        token = data["token"]
-
-        if token != session["token"]: return jsonify()
 
         if session["username"] in active_ips: return jsonify({"success":False, "msg": "Pls wait for the last request to be done!"})
         active_ips.add(session["username"])
@@ -196,7 +176,6 @@ def personal_page():
             return jsonify({"success":False, "msg": f"Error: Could not fetch results from linkedin.com."})
     
     elif request.method == 'DELETE':
-        if request.get_json()["token"] != session["token"]: return jsonify()
         CsvFiles().delete_user(session["username"])
         Users().delete_row(session["username"])
         session.pop("username")
@@ -210,22 +189,12 @@ def personal_page():
 
 @app.route('/load_files', methods=['POST'])
 def load_files():
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
-    if not request.get_json()["token"] == session["token"]: return jsonify()
-    
     data = CsvFiles().fetch(session["username"])[::-1]
     return jsonify({"data" : data})
 
 
 @app.route('/logout', methods=['POST'])
 def logout():
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
-    if not request.get_json()["token"] == session["token"]: return jsonify()
-    
     session.pop("username")
 
     return jsonify({"success":True})
@@ -233,9 +202,6 @@ def logout():
 
 @app.route('/pp/<filename>')
 def load_result(filename):
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     if "username" not in session:
         return redirect("/")
     
@@ -249,9 +215,6 @@ def load_result(filename):
 
 @app.route('/download/csv/<filename>')
 def download_csv(filename):
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     if "username" not in session:
         return redirect('/')
     
@@ -260,9 +223,6 @@ def download_csv(filename):
 
 @app.route('/download/excel/<filename>')
 def download_excel(filename):
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     if "username" not in session:
         return redirect('/')
     
@@ -272,9 +232,6 @@ def download_excel(filename):
 
 @app.route('/download/html/<filename>')
 def download_html(filename):
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     if "username" not in session:
         return redirect('/')
     
@@ -284,9 +241,6 @@ def download_html(filename):
 
 @app.route('/download/json/<filename>')
 def download_json(filename):
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     if "username" not in session:
         return redirect('/')
     
@@ -296,9 +250,6 @@ def download_json(filename):
 
 @app.errorhandler(404)
 def page_not_found(e):
-    if flood(request.remote_addr):
-        return render_template("flood.html")
-    
     return render_template("404.html"), 404
     
 
