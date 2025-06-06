@@ -45,7 +45,7 @@ def flood(ip, request_count = 5, time_limit = 1, ban_time = 5) -> bool:
         ip_tracker[ip] = [time()]
         tracker = ip_tracker[ip]
 
-    if len(tracker) > 1 and tracker[-1] - tracker[0] < time_limit:
+    if len(tracker) == request_count and tracker[-1] - tracker[0] < time_limit:
         banned_ips[ip] = time()
 
     if ip in banned_ips:

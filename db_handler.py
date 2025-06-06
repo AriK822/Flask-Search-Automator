@@ -283,15 +283,16 @@ class Sessions:
     def get(self, session_id):
         self.cursor.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id, ))
         data = self.cursor.fetchone()
-        if data:
+        if not data:
             return False
-        self.cursor.execute("UPDATE users SET used_time = ? WHERE session_id = ?", (time(), session_id))
+        self.cursor.execute("UPDATE sessions SET used_time = ? WHERE session_id = ?", (time(), session_id))
         self.conn.commit()
-        return loads(data[3])
+        if data[3]:
+            return loads(data[3])
     
 
     def update(self, session_id, info):
-        self.cursor.execute("UPDATE users SET used_time = ?, info = ? WHERE session_id = ?", (time(), dumps(info), session_id))
+        self.cursor.execute("UPDATE sessions SET used_time = ?, info = ? WHERE session_id = ?", (time(), dumps(info), session_id))
         self.conn.commit()
         
 
@@ -338,7 +339,7 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     handler = Sessions()
-    handler.add()
-    print(handler.get("234ew"))
+    # handler.add()
+    # print(handler.get("234ew"))
     print(handler.select_all())
     pass
