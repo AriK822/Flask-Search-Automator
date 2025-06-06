@@ -284,7 +284,7 @@ class Sessions:
         self.cursor.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id, ))
         data = self.cursor.fetchone()
         if data:
-            raise ValueError("session does not exist")
+            return False
         self.cursor.execute("UPDATE users SET used_time = ? WHERE session_id = ?", (time(), session_id))
         self.conn.commit()
         return loads(data[3])

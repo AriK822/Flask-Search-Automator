@@ -1,7 +1,7 @@
 from flask import Flask, request, render_template, jsonify, session, redirect, send_file, g
 from datetime import timedelta
 from time import time
-from db_handler import Users, CsvFiles, Pending
+from db_handler import Users, CsvFiles, Pending, Sessions
 from selenium_handler import SeleniumHandler
 from csv_handler import DataFethcher, Converter
 from security import (
@@ -21,6 +21,23 @@ def perminant_sessions():
 
 
 @app.before_request
+def session_handler():
+    if 'id' not in session:
+        session_id = Sessions().add()
+        session['id'] = session_id
+        g.session = {}
+    else:
+        session_id = session['id']
+        info = Sessions().get(session_id)
+        if info == False:
+            session_id = Sessions().add()
+            session['id'] = session_id
+            g.session = {}
+        else:
+            g.session = info
+
+
+@app.before_request
 def flood_handler():
     if flood(request.remote_addr):
         return render_template("flood.html")
@@ -29,7 +46,8 @@ def flood_handler():
 @app.before_request
 def csrf_handler():
     if request.method in ["POST", "DELETE"]:
-        if request.get_json()["token"] != session["token"]: return jsonify()
+        if request.get_json()["token"] != session["token"]: 
+            return jsonify()
 
 
 
