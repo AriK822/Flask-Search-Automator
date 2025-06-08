@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icon.png') }}">
-  <title>Login</title>
+  <title>Sign up</title>
   <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 
@@ -119,20 +119,22 @@
     margin-top: 0.5rem;
     font-size: 0.95rem;
   }
-
   </style>
 </head>
 <body>
   <div class="login-container">
-    <div class="login-title">Welcome back!</div>
-    <input id="username" type="email" inputmode="email" class="login-input" placeholder="Email">
-    <input id="password" type="password" class="login-input" placeholder="Password" autocomplete="new-password">
+    <div class="login-title">Search automator!</div>
+    <input id="username" type="email" inputmode="email" class="login-input" placeholder="Email" autocomplete="off">
+
+    <div class="security-box">
+      <img class="security-img" src="{{ url_for('static', filename='captcha/'+ id +'.png') }}" alt="Security code not loaded">
+      <input id="captcha" type="text" style="margin-bottom: 0;" inputmode="numeric" class="login-input" placeholder="Security code" autocomplete="off">
+    </div>
 
     <p id="msg" style="text-align: center;"></p>
 
-    <button class="login-button" onclick="log_in_request()">Login</button><br><br>
-    <a href="/forgotpass" class="home-a">Forgot password?</a><br>
-    <a href="/signup" class="home-a">Don't have an account? sign up</a><br>
+    <button class="login-button" onclick="forget_request()">Send link</button><br><br>
+
     <a href="/" class="home-a">Back to home page</a>
   </div>
 
@@ -140,53 +142,49 @@
 
 <script>
 
-function is_valid(username, password) {
+function is_valid(username, captcha) {
   username = username.trim();
-  password = password.trim();
 
   if (username === "") {return [false, "Username cannot be empty!"];}
-  if (password === "") {return [false, "Password cannot be empty!"];}
   if (username.length < 4) {return [false, "Username must be at least 4 characters long!"];}
-  if (password.length < 8) {return [false, "Password must be at least 8 characters long!"];}
   if (username.length > 50) {return [false, "Username can be at most 50 characters long!"];}
-  if (password.length > 20) {return [false, "Password can be at most 20 characters long!"];}
   if (username.includes(" ")) {return [false, "Username cannot contain spaces!"];}
-  if (password.includes(" ")) {return [false, "Password cannot contain spaces!"];}
-  if (/^\d+$/.test(password)) {return [false, "Password must contain at least one character!"];}
-  if (/^[a-zA-Z]+$/.test(password)) {return [false, "Password must contain at least one number!"];}
   if (!username.includes("@gmail.com")) {return [false, "Email not valid or not supported."];}
+  if (captcha === "") {return [false, "Security code cannot be empty!"];}
+  if (captcha.includes(" ")) {return [false, "Security code invalid."]}
+  if (captcha.length != 4) {return [false, "Security code must be 4 characters long."]}
   return [true, "OK"];
 }
 
-
-
-  async function log_in_request(){
+  async function forget_request(){
     let username_value = document.getElementById("username").value;
-    let password_value = document.getElementById("password").value;
+    let captcha_vlue = document.getElementById("captcha").value;
 
-    let js_test = is_valid(username_value, password_value)
+    let js_test = is_valid(username_value, captcha_vlue)
     if (js_test[0] == false){
       document.getElementById("msg").innerHTML = js_test[1];
       return
     }
 
-    let response = await fetch("/login", {
+    let response = await fetch("/forgotpass", {
       method: "POST",
       headers: {
         "Content-type": "application/json",
       },
       body: JSON.stringify({
         username : username_value,
-        password : password_value,
+        captcha : captcha_vlue,
         token : document.getElementById("token").innerHTML,
       })
 
     })
     let result = await response.json();
     document.getElementById("msg").innerHTML = result.msg
-    if (result.success == true){window.location.replace("/pp");}
+    if (result.success == true){
+      alert("A recovery link was successfully sent to your eamil!");
+      window.location.replace("/login");
+    }
   }
-
 
 </script>
 

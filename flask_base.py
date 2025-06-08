@@ -1,12 +1,12 @@
 from flask import Flask, request, render_template, jsonify, session, redirect, send_file, g
 from datetime import timedelta
 from time import time
-from db_handler import Users, CsvFiles, Pending, Sessions
+from db_handler import Users, CsvFiles, Pending, Sessions, PassChanger, pending_timeout, pass_change_timeout
 from selenium_handler import SeleniumHandler
 from csv_handler import DataFethcher, Converter
 from security import (
     generate_csrf, generate_auth, generate_captcha_image,encrypt_code, decrypt_code,
-    flood, FLASK_APP_SECRET_KEY, active_ips, EmailSender,
+    flood, FLASK_APP_SECRET_KEY, active_ips, EmailSender, 
 )
 
 
@@ -54,7 +54,7 @@ def flood_handler():
 
 @app.before_request
 def csrf_handler():
-    if request.method in ["POST", "DELETE"]:
+    if request.method in ["POST", "DELETE", "PUT"]:
         if request.get_json()["token"] != g.session["token"]: 
             return jsonify()
 
@@ -118,7 +118,7 @@ def sgin_up():
         verification_key = generate_auth()
         if not Pending().add(username, password, verification_key):
             return jsonify({"success": False, "msg": "An email is already sent to this email. Please wait a few minutes."})
-        if not EmailSender().send(username, verification_key):
+        if not EmailSender().send_authentication(username, verification_key):
             Pending().remove(username)
             return jsonify({"success": False, "msg": "Failed to send email."})
    
@@ -166,9 +166,88 @@ def verification():
         token = generate_csrf()
         g.session["token"] = token
 
-        remaining_time = round(user["sent_time"] + 120 - time())
+        remaining_time = round(user["sent_time"] + pending_timeout - time())
 
         return render_template("verification.html", username = user["username"], token = token, remaining_time = remaining_time)
+
+
+@app.route('/passchange', methods=["GET", "POST", "PUT"])
+def change_password():
+    if request.method == 'PUT':
+        data = request.get_json()
+        username = data["username"]
+        result = PassChanger().add(username)
+        if not result[0]:
+            return jsonify({"msg": result[1]})
+        if not EmailSender().send_passchange_link(username, result[1]):
+            PassChanger().remove(username)
+            return jsonify({"msg": "Failed to send email."})
+        
+        return jsonify({"msg": "A recovery link was successfully sent to your email."})
+
+    elif request.method == "POST":
+        key = request.get_json()["key"]
+        user = PassChanger().get(key)
+
+        if not user:
+            return jsonify({"redirect": False, "msg": "The link has expired!"})
+
+        username = user["username"]
+        password = request.get_json()["newpass"]
+
+        valid = Users().pass_valid(password)
+        if not valid[0]:
+            return jsonify({"redirect": False, "msg": valid[1]})
+        
+        Users().update(username, password)
+        EmailSender().send_security_alert(username, request.remote_addr) #type: ignore
+        PassChanger().remove(username)
+        return jsonify({"redirect": True, "msg": "/login"})
+
+    else:
+        key = request.args.get("key")
+        user = PassChanger().get(key)
+
+        if not user:
+            return redirect('/login')
+        
+        token = generate_csrf()
+        g.session["token"] = token
+
+        remaining_time = round(user["sent_time"] + pass_change_timeout - time())
+        return render_template("passchange.html", token=token, remaining_time = remaining_time, key = key)
+
+
+@app.route('/forgotpass', methods=['GET', 'POST'])
+def forgot_pass():
+    if request.method == 'POST':
+        data = request.get_json()
+
+        if data["captcha"] != decrypt_code(g.session["captcha"]): 
+            return jsonify({"success": False, "msg": "Security code invalid!"})
+        
+        username = data["username"]
+
+        result = PassChanger().add(username)
+        if not result[0]:
+            return jsonify({"success": False, "msg": result[1]})
+        if not EmailSender().send_passchange_link(username, result[1]):
+            PassChanger().remove(username)
+            return jsonify({"success": False, "msg": "Failed to send email."})
+        
+        return jsonify({"success": True, "msg": "A link for changing your password was successfully sent to your email."})
+
+    else:
+        if "username" in g.session:
+            return redirect('/pp')
+        
+        token = generate_csrf()
+        g.session["token"] = token
+
+        security_code = generate_captcha_image(request.remote_addr)
+        g.session["captcha"] = encrypt_code(security_code)
+
+        return render_template("forgotpass.html", token = token, id = request.remote_addr)
 
 
 @app.route('/pp', methods=['GET', 'POST', 'DELETE'])

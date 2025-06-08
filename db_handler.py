@@ -11,7 +11,7 @@ from security import encrypt_code, decrypt_code
 
 sessions_timeout = 7 * (24 * 60 * 60)
 pending_timeout = 120
-
+pass_change_timeout = 5 * 60
 
 if not path.exists("data_base"):
     mkdir("data_base")
@@ -104,6 +104,22 @@ class Users:
         if result[0]:
             self.add(username, password)
         return result
+    
+
+    def pass_valid(self, password):
+        if password.strip() == "":
+            return (False, "Password cannot be empty!")
+        if len(password) < 8:
+            return (False, "Password must be atleast 8 characters long!")
+        if len(password) > 16:
+            return (False, "Password can be at most 20 characters long!")
+        if ' ' in password:
+            return (False, "Password cannot contain spaces!")
+        if all(map(lambda x:x in '0123456789', password)):
+            return (False, "Password must contain atleast one character!")
+        if all(map(lambda x:x in ascii_letters, password)):
+            return (False, "Password must contain atleast one number!")
+        return (True, "")
         
 
     def is_valid(self, username:str, password:str) -> tuple:
@@ -331,6 +347,62 @@ class Sessions:
     
 
 
+pass_change_list = []
+
+class PassChanger:
+    def __init__(self):
+        self.clear_timeout()
+
+
+    def clear_timeout(self):
+        delete_list = []
+        for user in pass_change_list:
+            if time() - user["sent_time"] > pass_change_timeout:
+                delete_list.append(user)
+
+        for user in delete_list:
+            pass_change_list.remove(user)
+
+
+    def add(self, username):
+        if not Users().select_row(username):
+            return (False, "User does not exist")
+        for user in pass_change_list:
+            if user["username"] == username:
+                return (False, "Email is already sent to this username. Please check tour email or wait a few minutes.")
+
+        key = generate_session_id()
+
+        pass_change_list.append({
+            'username': username,
+            'key' : encrypt_code(key),
+            'sent_time' : time(),
+        })
+        return (True, key)
+    
+
+    def get(self, key):
+        for user in pass_change_list:
+            user_key = decrypt_code(user["key"])
+            if user_key == key:
+                return {
+                    'username': user["username"],
+                    'key' : user_key,
+                    'sent_time' : user["sent_time"],
+                }
+        return None
+    
+
+    def remove(self, username):
+        for user in pass_change_list:
+            if user["username"] == username:
+                pass_change_list.remove(user)
+                return True
+            
+        return False
+    
+
+
 
 if __name__ == "__main__":
     # handler = Users()
@@ -378,5 +450,10 @@ if __name__ == "__main__":
 
 
 if __name__ == "__main__":
-    handler = CsvFiles()
-    print(handler.fetch("armankiani1384@gmail.com"))
+    # handler = CsvFiles()
+    # print(handler.fetch("armankiani1384@gmail.com"))
+    key = PassChanger().add("armankiani1384@gmail.com")[1]
+    print(key)
+    print(PassChanger().get(key))
+
+    pass

@@ -124,69 +124,89 @@
 </head>
 <body>
   <div class="login-container">
-    <div class="login-title">Welcome back!</div>
-    <input id="username" type="email" inputmode="email" class="login-input" placeholder="Email">
-    <input id="password" type="password" class="login-input" placeholder="Password" autocomplete="new-password">
+    <div class="login-title">Recover password</div>
+    <input id="password1" type="password" inputmode="email" class="login-input" placeholder="New password" autocomplete="new-password">
+    <input id="password2" type="password" inputmode="email" class="login-input" placeholder="Repeat password" autocomplete="new-password">
 
     <p id="msg" style="text-align: center;"></p>
 
-    <button class="login-button" onclick="log_in_request()">Login</button><br><br>
-    <a href="/forgotpass" class="home-a">Forgot password?</a><br>
-    <a href="/signup" class="home-a">Don't have an account? sign up</a><br>
+    <button class="login-button" onclick="passchange_request()">Change password</button><br>
+    <p id="timer">Time left: 5:00</p>
     <a href="/" class="home-a">Back to home page</a>
   </div>
 
 <p id="token" style="display: none;">{{ token }}</p>
+<p id="key" style="display: none;">{{ key }}</p>
 
 <script>
 
-function is_valid(username, password) {
-  username = username.trim();
+function is_valid(password) {
   password = password.trim();
 
-  if (username === "") {return [false, "Username cannot be empty!"];}
   if (password === "") {return [false, "Password cannot be empty!"];}
-  if (username.length < 4) {return [false, "Username must be at least 4 characters long!"];}
   if (password.length < 8) {return [false, "Password must be at least 8 characters long!"];}
-  if (username.length > 50) {return [false, "Username can be at most 50 characters long!"];}
   if (password.length > 20) {return [false, "Password can be at most 20 characters long!"];}
-  if (username.includes(" ")) {return [false, "Username cannot contain spaces!"];}
   if (password.includes(" ")) {return [false, "Password cannot contain spaces!"];}
   if (/^\d+$/.test(password)) {return [false, "Password must contain at least one character!"];}
   if (/^[a-zA-Z]+$/.test(password)) {return [false, "Password must contain at least one number!"];}
-  if (!username.includes("@gmail.com")) {return [false, "Email not valid or not supported."];}
   return [true, "OK"];
 }
 
 
 
-  async function log_in_request(){
-    let username_value = document.getElementById("username").value;
-    let password_value = document.getElementById("password").value;
+  async function passchange_request(){
+    let pass1_value = document.getElementById("password1").value;
+    let pass2_value = document.getElementById("password2").value;
 
-    let js_test = is_valid(username_value, password_value)
+    let js_test = is_valid(pass1_value)
     if (js_test[0] == false){
       document.getElementById("msg").innerHTML = js_test[1];
-      return
+      return;
     }
 
-    let response = await fetch("/login", {
+    if (pass1_value != pass2_value){
+      document.getElementById("msg").innerHTML = "Repeated password dosn't match!";
+      return;
+    }
+
+    let response = await fetch("/passchange", {
       method: "POST",
       headers: {
         "Content-type": "application/json",
       },
       body: JSON.stringify({
-        username : username_value,
-        password : password_value,
+        newpass : pass1_value,
+        key : document.getElementById("key").innerHTML,
         token : document.getElementById("token").innerHTML,
       })
-
     })
     let result = await response.json();
-    document.getElementById("msg").innerHTML = result.msg
-    if (result.success == true){window.location.replace("/pp");}
+    if (result.redirect){
+      alert("Your password was successfully changed!");
+      window.location.replace(result.msg);
+    }
+    else {document.getElementById("msg").innerHTML = result.msg;}
   }
 
+
+  
+let countdownElement = document.getElementById("timer");
+let totalSeconds = {{ remaining_time }};
+
+let timer = setInterval(() => {
+    let minutes = Math.floor(totalSeconds / 60);
+    let seconds = totalSeconds % 60;
+
+    countdownElement.innerHTML = 
+        "Time left: " + `${String(minutes)}:${String(seconds).padStart(2, '0')}`;
+
+    totalSeconds--;
+
+    if (totalSeconds < 0) {
+        clearInterval(timer);
+        window.location.replace("/signup");
+    }
+}, 1000);
 
 </script>
 

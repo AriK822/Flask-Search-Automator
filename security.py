@@ -7,6 +7,7 @@ from smtplib import SMTP_SSL
 from email.mime.text import MIMEText
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from cryptography.fernet import Fernet
+from datetime import datetime
 
 
 
@@ -57,7 +58,7 @@ def flood(ip, request_count = 5, time_limit = 1, ban_time = 5) -> bool:
 
 
 class EmailSender:
-    def send(self, to_email:str, authentication_code:int):
+    def send_authentication(self, to_email:str, authentication_code:int):
         from_email = "kianiarman91@gmail.com"
         password = GMAIL_APP_PASSWORD
 
@@ -78,6 +79,82 @@ class EmailSender:
 
         msg = MIMEText(body, "html")
         msg["Subject"] = "Verification - Search automator"
+        msg["From"] = from_email
+        msg["To"] = to_email
+
+        try:
+            with SMTP_SSL("smtp.gmail.com", 465) as server:
+                server.login(from_email, password) # type: ignore
+                server.sendmail(from_email, to_email, msg.as_string())
+                return True
+            
+        except Exception as e:
+            print("Error while sending the eamil:", e)
+            return False
+        
+
+    def send_passchange_link(self, to_email:str, key:str):
+        from_email = "kianiarman91@gmail.com"
+        password = GMAIL_APP_PASSWORD
+        domain_name = "http://192.168.1.21:5000/"
+
+        body = f"""
+            <html>
+            <body>
+                <h2 style="color:navy;">Search automator</h2>
+                <p><b>Hello dear user</b>,</p>
+                <p>Your password change link:</p>
+                <a href="{domain_name}passchange?key={key}" style="
+                text-decoration: none;
+                color: rgb(255, 255, 255);
+                background: rgb(33, 33, 33);
+                padding:5px;
+                border-radius: 5px;
+                box-shadow: 0px 0px 8px 5px rgba(0, 0, 0, 0.4);
+                "><b>Your password change link</b></a><br><br>
+                <p style="text-decoration: underline;"><span style="color: red;"><b>Don't share</span></b> this link with <b>anyone!</b></p>
+                <br>
+                <p>If you face any issues, pls contact us at:</p>
+                <a>kianiarman91@gmail.com</a>
+            </body>
+            </html>
+        """
+
+        msg = MIMEText(body, "html")
+        msg["Subject"] = "Password change - Search automator"
+        msg["From"] = from_email
+        msg["To"] = to_email
+
+        try:
+            with SMTP_SSL("smtp.gmail.com", 465) as server:
+                server.login(from_email, password) # type: ignore
+                server.sendmail(from_email, to_email, msg.as_string())
+                return True
+            
+        except Exception as e:
+            print("Error while sending the eamil:", e)
+            return False
+        
+
+    def send_security_alert(self, to_email:str, id:str):
+        from_email = "kianiarman91@gmail.com"
+        password = GMAIL_APP_PASSWORD
+
+        body = f"""
+        <html>
+        <body>
+            <h2 style="color:navy;">Search automator - Security alert</h2>
+            <h3 style="color:red;"><b>Your password was recently changed.</b>,</h3>
+            <p>Date modified: {datetime.now()}</p>
+            <p>By id: {id}</p>
+            <p>If that was not you, contact us as soon as possible on:</p><br>
+            <a>kianiarman91@gmail.com</a>
+        </body>
+        </html>
+        """
+
+        msg = MIMEText(body, "html")
+        msg["Subject"] = "Security - Search automator"
         msg["From"] = from_email
         msg["To"] = to_email
 
