@@ -1,4 +1,5 @@
-from flask import Flask, request, render_template, jsonify, session, redirect, send_file, g
+from flask import Flask, request, render_template, jsonify, session, redirect, send_file, g, Response, stream_with_context
+from json import dumps
 from datetime import timedelta
 from time import time
 from db_handler import Users, CsvFiles, Pending, Sessions, PassChanger, pending_timeout, pass_change_timeout
@@ -250,38 +251,12 @@ def forgot_pass():
         return render_template("forgotpass.html", token = token, id = request.remote_addr)
 
 
-@app.route('/pp', methods=['GET', 'POST', 'DELETE'])
+@app.route('/pp', methods=['GET', 'DELETE'])
 def personal_page():
     if "username" not in g.session:
         return redirect("/login")
     
-    if request.method == 'POST':
-        data = request.get_json()
-        job = data["job"].strip()
-        location = data["location"].strip()
-
-        if g.session["username"] in active_ips: return jsonify({"success":False, "msg": "Pls wait for the last request to be done!"})
-        active_ips.add(g.session["username"])
-
-        job = "Software engineer" if job == "" else job
-        location = "United States" if location == "" else location
-
-        selenium_handler = SeleniumHandler(job, location)
-        if selenium_handler.extract():
-            csv_handler = CsvFiles()
-            count = csv_handler.count(g.session["username"]) + 1
-
-            selenium_handler.save_csv(g.session["username"], count)
-            csv_handler.add(g.session["username"], f"{g.session["username"]} {count}", job, location)
-
-            active_ips.remove(g.session["username"])
-            return jsonify({"success":True, "msg": f"pp/{g.session["username"]} {count}"})
-
-        else:
-            active_ips.remove(g.session["username"])
-            return jsonify({"success":False, "msg": f"Error: Could not fetch results from linkedin.com."})
-    
-    elif request.method == 'DELETE':
+    if request.method == 'DELETE':
         CsvFiles().delete_user(g.session["username"])
         Users().delete_row(g.session["username"])
         g.session.pop("username")
@@ -291,6 +266,59 @@ def personal_page():
         token = generate_csrf()
         g.session["token"] = token
         return render_template("pp.html", user = g.session["username"], token = token)
+    
+
+@app.route('/pp/fetch', methods=['GET'])
+def fetch_results():
+    token = request.args.get("token")
+    job = request.args.get("job").strip() # type: ignore
+    location = request.args.get("location").strip() # type: ignore
+
+    job = "Software engineer" if job == "" else job
+    location = "United States" if location == "" else location
+
+    if 'token' not in g.session:
+        return jsonify()
+    
+    if token != g.session["token"]:
+        return jsonify()
+    
+    g_session = g.session
+    
+    def stream_results():
+        if g_session["username"] in active_ips: 
+            yield f"data: {dumps({"success":False, "continue": False, "msg": "Pls wait for the last request to be done!"})}\n\n"
+            return
+        
+        active_ips.add(g_session["username"])
+
+        selenium_handler = SeleniumHandler(job, location)
+
+        gen = selenium_handler.extract()
+        while True:
+            result = next(gen)
+            if result in ["True", "False"]:
+                break
+            yield result
+
+        if result == "True":
+            csv_handler = CsvFiles()
+            count = csv_handler.count(g_session["username"]) + 1
+
+            selenium_handler.save_csv(g_session["username"], count)
+            csv_handler.add(g_session["username"], f"{g_session["username"]} {count}", job, location)
+
+            active_ips.remove(g_session["username"])
+            yield f"data: {dumps({"success":True, "continue": False, "msg": f"pp/{g_session["username"]} {count}"})}\n\n"
+            return
+
+        else:
+            active_ips.remove(g_session["username"])
+            yield f"data: {dumps({"success":False, "continue": False, "msg": f"Error: Could not fetch results from linkedin.com."})}\n\n"
+            return
+        
+    
+    return Response(stream_with_context(stream_results()), mimetype="text/event-stream") #type: ignore
     
 
 @app.route('/load_files', methods=['POST'])

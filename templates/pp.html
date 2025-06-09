@@ -11,7 +11,19 @@
       box-sizing: border-box;
       font-family: 'Inter', sans-serif;
     }
-
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #ff9100;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #fab04d;
+    }
     body {
       margin: 0;
       padding: 0;
@@ -206,6 +218,11 @@
       0% { transform: translate(-50%, -50%) scale(0.3); }
       100% { transform: translate(-50%, -50%) scale(1); }
     }
+    @keyframes loading {
+      0% {opacity: 100%;}
+      50% {opacity: 30%;}
+      100% {opacity: 100%;}
+    }
   </style>
 </head>
 <body>
@@ -298,25 +315,37 @@
       document.getElementById("msg-container").style.display = "none";
       document.getElementById("loading-animation").style.display = "flex";
 
-      let response = await fetch("/pp", {
-        method: "POST",
-        headers: { "Content-type": "application/json" },
-        body: JSON.stringify({
-          job: document.getElementById("job").value,
-          location: document.getElementById("location").value,
-          token: document.getElementById("csrf-token").innerHTML
-        })
-      });
+      let job = document.getElementById("job").value;
+      let location = document.getElementById("location").value;
+      let token = document.getElementById("csrf-token").innerHTML;
 
-      let result = await response.json();
-      if (result.success) {
-        window.location.replace(result.msg);
-      } else {
-        document.getElementById("loading-animation").style.display = "none";
-        document.getElementById("msg-container").style.display = "block";
-        document.getElementById("msg-container").innerText = result.msg;
-      }
+      const es = new EventSource(`/pp/fetch?token=${token}&job=${job}&location=${location}`);
+
+      es.onmessage = function(e) {
+        const parsed = JSON.parse(e.data);
+        if (parsed.continue){
+          document.getElementById("msg-container").style.color = "white";
+          document.getElementById("msg-container").style.textShadow = "0px 0px 15px rgba(255, 255, 255, 0.6)";
+          document.getElementById("loading-animation").style.display = "flex";
+          document.getElementById("msg-container").style.display = "block";
+          document.getElementById("msg-container").style.animation = "loading 1s infinite linear";
+          document.getElementById("msg-container").innerText = parsed.msg;
+        }
+        else {
+          if (parsed.success){window.location.replace(parsed.msg)}
+          else {
+            document.getElementById("msg-container").style.color = "#ff5252";
+            document.getElementById("msg-container").style.textShadow = "";
+            document.getElementById("msg-container").style.animation = "";
+            document.getElementById("loading-animation").style.display = "none";
+            document.getElementById("msg-container").style.display = "block";
+            document.getElementById("msg-container").innerText = parsed.msg;
+            es.close();
+          }
+        }
+      };
     }
+
 
     async function logout() {
       if (confirm("Are you sure you want to logout?")) {
