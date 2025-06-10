@@ -7,6 +7,7 @@ from os import remove, listdir
 from pickle import dumps, loads
 from uuid import uuid4
 from security import encrypt_code, decrypt_code
+from re import sub, DOTALL
 
 
 sessions_timeout = 7 * (24 * 60 * 60)
@@ -14,8 +15,7 @@ pending_timeout = 120
 pass_change_timeout = 5 * 60
 
 
-if not path.exists("data_base"):
-    mkdir("data_base")
+if not path.exists("data_base"): mkdir("data_base")
 
 
 def clear_cache():
@@ -39,7 +39,47 @@ def generate_session_id() -> str:
 
 
 def compress(html_string:str):
-    return ''.join([i.strip() for i in html_string.split('\n')])
+    # is_script, result = False, ""
+    # for i in html_string.split('\n'):
+    #     if i.strip() == '': continue
+    #     if '<script' in i: is_script = True
+    #     if '</script>' in i: is_script = False
+    #     if is_script:
+    #         i = i.strip()
+    #         if i[:2] == '//': continue
+    #         if i[-1] in ['{', ';']: result += i
+    #         else: result += i + '\n'
+    #     else:
+    #         i = i.strip()
+    #         if i[-1] in ['"', "'"]: i += ''
+    #         result += i
+    # 
+    # return result
+
+    html_string = '\n'.join([i.strip() for i in html_string.split('\n') if i.strip()])
+    html_string = sub(r'>\s+<', '><', html_string)
+
+    def minify(match):
+        content = match.group(1)
+        content = content.replace('\n', '')
+        return f"<style>{content}</style>"
+
+    html_string = sub(r'<style[^>]*>(.*?)</style>', minify, html_string, flags=DOTALL)
+
+    return html_string
+
+
+def get_pfp(username:str):
+    cu = username.split('@')[0]
+    if path.exists(f"static/users/{cu}.png"): 
+        return f"users/{cu}.png"
+    return "default_pfp.jpg"
+
+
+def remove_pfp(username:str):
+    cu = username.split('@')[0]
+    if path.exists(f"static/users/{cu}.png"):
+        remove(f"static/users/{cu}.png")
 
 
 

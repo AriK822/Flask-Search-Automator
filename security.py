@@ -8,6 +8,7 @@ from email.mime.text import MIMEText
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from cryptography.fernet import Fernet
 from datetime import datetime
+from PIL import Image
 
 
 
@@ -20,9 +21,9 @@ ip_tracker = {}
 banned_ips = {}
 
 
-if not path.exists("static/captcha"):
-    mkdir("static")
-    mkdir("static/captcha")
+if not path.exists("static"): mkdir("static")
+if not path.exists("static/captcha"): mkdir("static/captcha")
+if not path.exists("static/users"): mkdir("static/users")
 
 
 def generate_csrf(length:int = 16) -> str:
@@ -54,6 +55,31 @@ def flood(ip, request_count = 5, time_limit = 1, ban_time = 5) -> bool:
             return False
         return True
     else: return False
+
+
+def validate_filename(username:str, 
+                      filename:str, 
+                      default_loc = "static/users/", 
+                      accepted_type = ["png", "jpg", "jpeg"]):
+    
+    extension = filename.split('.')[-1]
+    if not extension in accepted_type:
+        return (False, "File type not suppoerted!")
+    
+    clean_username = username.split('@')[0]
+    return (True, f"{default_loc}{clean_username}.png")
+
+
+def save_image(file, path:str):
+    try:
+        img = Image.open(file.stream)
+        img = img.resize((512, 512))
+        img = img.convert("RGBA")
+        img.save(path)
+        return (True, "Uploaded successfully")
+    
+    except:
+        return (False, "Invalid file")
 
 
 
@@ -217,6 +243,7 @@ if __name__ == "__main__":
     # code = generate_captcha_image("192.168.0.21")
     # print(code)
     # EmailSender().send("armankiani1384@gmail.com", generate_auth())
-    a = encrypt_code("kianiarman91@gmail.com")
-    print(decrypt_code(a))
+    # a = encrypt_code("kianiarman91@gmail.com")
+    # print(decrypt_code(a))
+    print(validate_filename("kianiarman91@gmail.com", "alibaba/wef/e.png"))
     pass

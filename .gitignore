@@ -5,3 +5,5 @@
 /cache
 test.py
 test.html
+/static/captcha
+/static/users

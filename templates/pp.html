@@ -186,30 +186,6 @@
         width: 50%;
       }
     }
-    .full-screen{
-      position: fixed;
-      top:0;
-      left:0;
-      padding: 0;
-      margin: 0;
-      width:100%;
-      height:100%;
-      background: rgba(0, 0, 0, 0.7);
-      align-content: center;
-      text-align: center;
-    }
-    .bordered{
-      position: absolute;
-      width: 50%;
-      height: 50%;
-      top:50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #2a2a2a;
-      box-shadow: 0px 0px 10px 10px rgba(0,0,0,0.3);
-      border-radius: 18px;
-      align-content: center;
-    }
     @keyframes opacity_up {
       0% { opacity: 0%; }
       100% { opacity: 100%; }
@@ -223,10 +199,78 @@
       50% {opacity: 30%;}
       100% {opacity: 100%;}
     }
+    .pfp_home{
+      display: flex;
+      float: left;
+      width: 70px;
+      height: auto;
+      aspect-ratio: 1/1;
+      border-radius: 100%;
+      margin-right: 23px;
+      margin-top: 27px;
+      cursor: pointer;
+      transition: 0.2s linear;
+    }
+    .pfp_home:hover{
+      filter:opacity(0.70);
+      transform: scale(1.1);
+    }
+    .title-main{
+      display: flex;
+      float: left;
+    }
+
+    #messageBox {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 8px 12px rgba(0,0,0,0.7);
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      cursor: pointer;
+      transition: 0.2s linear;
+    }
+
+    #messageBox.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #messageBox:hover{
+      background-color: #505050;
+    }
+
+    #messageTimer {
+      height: 4px;
+      background-color: #00ff88;
+      width: 100%;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      animation: shrinkBar 5s linear forwards;
+    }
+
+    @keyframes shrinkBar {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
   </style>
 </head>
 <body>
-  <h1>Account {{user}}</h1>
+  <div>
+    <img src="{{ url_for('static', filename=pfp) }}" alt="Profile picture" class="pfp_home" onclick="
+      document.getElementById('pfp_input').click()
+    " id="pfp_image">
+    <input id="pfp_input" type="file" accept=".png, .jpg, .jpeg" style="display: none;" onchange="upload_pfp()"/>
+    <h1 class="title-main">Account {{user}}</h1>
+  </div>
   <hr />
   <div class="container">
     <input class="search-input" id="job" placeholder="Job">
@@ -255,26 +299,58 @@
   </div>
 
 
-
-  <div class="full-screen" id="full-screen" style="display: none;">
-    <div class="bordered" id="bordered">
-      <h4 id="f-msg" style="text-align: center;"></h4>
-    </div>
+  <div id="messageBox">
+    <div id="messageContent">Message goes here...</div>
+    <div id="messageTimer"></div>
   </div>
 
   <p id="csrf-token" style="display: none;">{{ token }}</p>
 
+
   <script>
     load_files();
 
-    function view_fullscreen(){
-      document.getElementById("full-screen").style.display = "block";
-      document.getElementById("full-screen").style.animation = "opacity_up 0.3s 1 ease-out";
-      document.getElementById("bordered").style.animation = "grow 0.3s 1 ease-out";
+    async function upload_pfp() {
+      fileInput = document.getElementById("pfp_input");
+      let file = fileInput.files[0];
 
-      document.getElementById("full-screen").addEventListener("mousedown", () => {
-        document.getElementById("full-screen").style.display = "none";
-      })
+      if (!file) {showMessage('No file is selected!'); return;} 
+      if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {showMessage("Only PNG or JPG files allowed!"); return;} 
+      if (file.size > 5 * 1024 * 1024) {showMessage("File too large! Max 5MB."); return;} 
+
+      let formData = new FormData();
+      formData.append("file", file);
+
+      let response = await fetch("/pp", {
+        method: "POST",
+        headers: {"token" : document.getElementById("csrf-token").innerHTML},
+        body: formData
+      });
+
+      let result = await response.json();
+      showMessage(result.msg, result.success);
+      if (result.success){document.getElementById("pfp_image").src = result.src + "?t=" + new Date().getTime();}
+    }
+
+
+    function showMessage(text, success=false) {
+      const box = document.getElementById('messageBox');
+      const content = document.getElementById('messageContent');
+      const timer = document.getElementById('messageTimer');
+
+      content.textContent = text;
+      if (success){timer.style.background = "lime";}
+      else {timer.style.background = "red"}
+
+      timer.style.animation = 'none';
+      void timer.offsetWidth;
+      timer.style.animation = 'shrinkBar 5s linear forwards';
+
+      box.classList.add('active');
+
+      setTimeout(() => {
+        box.classList.remove('active');
+      }, 5000);
     }
 
 
@@ -384,8 +460,8 @@
       });
 
       let result = await response.json();
-      document.getElementById("f-msg").innerHTML = result.msg;
-      view_fullscreen();
+      if (result.success){showMessage(result.msg, true);}
+      else {showMessage(result.msg, false)}
     }
   </script>
 </body>

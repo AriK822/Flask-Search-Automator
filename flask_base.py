@@ -2,16 +2,15 @@ from flask import Flask, request, render_template, jsonify, session, redirect, s
 from json import dumps
 from datetime import timedelta
 from time import time
-from db_handler import Users, CsvFiles, Pending, Sessions, PassChanger, pending_timeout, pass_change_timeout, compress
+from db_handler import *
 from selenium_handler import SeleniumHandler
 from csv_handler import DataFethcher, Converter
-from security import (
-    generate_csrf, generate_auth, generate_captcha_image,encrypt_code, decrypt_code,
-    flood, FLASK_APP_SECRET_KEY, active_ips, EmailSender, 
-)
+from security import *
+
 
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 5 * (1024 * 1024)
 app.secret_key = FLASK_APP_SECRET_KEY
 app.permanent_session_lifetime = timedelta(days=7)
 
@@ -56,7 +55,10 @@ def flood_handler():
 @app.before_request
 def csrf_handler():
     if request.method in ["POST", "DELETE", "PUT"]:
-        if request.get_json()["token"] != g.session["token"]: 
+        if 'token' in request.headers:
+            if request.headers["token"] != g.session["token"]:
+                return jsonify()
+        elif request.get_json()["token"] != g.session["token"]: 
             return jsonify()
         
 
@@ -186,12 +188,12 @@ def change_password():
         username = data["username"]
         result = PassChanger().add(username)
         if not result[0]:
-            return jsonify({"msg": result[1]})
+            return jsonify({"msg": result[1], "success":False,})
         if not EmailSender().send_passchange_link(username, result[1]):
             PassChanger().remove(username)
-            return jsonify({"msg": "Failed to send email."})
+            return jsonify({"msg": "Failed to send email.", "success":False,})
         
-        return jsonify({"msg": "A recovery link was successfully sent to your email."})
+        return jsonify({"msg": "A recovery link was successfully sent to your email.", "success":True,})
 
     elif request.method == "POST":
         key = request.get_json()["key"]
@@ -258,21 +260,42 @@ def forgot_pass():
         return render_template("forgotpass.html", token = token, id = request.remote_addr)
 
 
-@app.route('/pp', methods=['GET', 'DELETE'])
+@app.route('/pp', methods=['GET', 'DELETE', 'POST'])
 def personal_page():
     if "username" not in g.session:
         return redirect("/login")
     
-    if request.method == 'DELETE':
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            return jsonify({"msg": "No file part", "success": False}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"msg": "No selected file", "success": False}), 400
+
+        path = validate_filename(g.session["username"], file.filename) # type: ignore
+        if not path[0]: 
+            return jsonify({"msg": path[1], "success": False}), 400
+        
+        result = save_image(file, path[1])
+        if not result[0]:
+            return jsonify({"msg": result[1], "success": False}), 400
+        
+        return jsonify({"msg": result[1], "success": True, "src": "static/" + get_pfp(g.session["username"])}), 400
+    
+    elif request.method == 'DELETE':
         CsvFiles().delete_user(g.session["username"])
         Users().delete_row(g.session["username"])
+        remove_pfp(g.session["username"])
         g.session.pop("username")
         return jsonify()
 
     else:
         token = generate_csrf()
         g.session["token"] = token
-        return render_template("pp.html", user = g.session["username"], token = token)
+
+        pfp = get_pfp(g.session["username"])
+        return render_template("pp.html", user = g.session["username"], token = token, pfp=pfp)
     
 
 @app.route('/pp/fetch', methods=['GET'])
@@ -298,6 +321,7 @@ def fetch_results():
             return
         
         active_ips.add(g_session["username"])
+        yield f"data: {dumps({"success":True, "continue": True, "msg": "Started processing..."})}\n\n"
 
         selenium_handler = SeleniumHandler(job, location)
 
@@ -309,6 +333,8 @@ def fetch_results():
             yield result
 
         if result == "True":
+            yield f"data: {dumps({"success":True, "continue": True, "msg": "Saving data..."})}\n\n"
+
             csv_handler = CsvFiles()
             count = csv_handler.count(g_session["username"]) + 1
 
@@ -337,7 +363,6 @@ def load_files():
 @app.route('/logout', methods=['POST'])
 def logout():
     g.session.pop("username")
-
     return jsonify({"success":True})
 
 

@@ -57,7 +57,7 @@ class SeleniumHandler:
 
             cycle = 0
 
-            yield f"data: {dumps({"success":True, "continue": True, "msg": "Fetching results..."})}\n\n"
+            yield f"data: {dumps({"success":True, "continue": True, "msg": f"Found {len(job_cards)} jobs, Fetching results..."})}\n\n"
             for card in job_cards:
                 try:
                     if cycle == 0:
