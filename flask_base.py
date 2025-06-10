@@ -2,7 +2,7 @@ from flask import Flask, request, render_template, jsonify, session, redirect, s
 from json import dumps
 from datetime import timedelta
 from time import time
-from db_handler import Users, CsvFiles, Pending, Sessions, PassChanger, pending_timeout, pass_change_timeout
+from db_handler import Users, CsvFiles, Pending, Sessions, PassChanger, pending_timeout, pass_change_timeout, compress
 from selenium_handler import SeleniumHandler
 from csv_handler import DataFethcher, Converter
 from security import (
@@ -58,6 +58,13 @@ def csrf_handler():
     if request.method in ["POST", "DELETE", "PUT"]:
         if request.get_json()["token"] != g.session["token"]: 
             return jsonify()
+        
+
+@app.after_request
+def compress_request(response):
+    if response.content_type.startswith('text/html'):
+        response.set_data(compress(response.get_data(as_text=True)))
+    return response
 
 
 

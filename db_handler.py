@@ -13,6 +13,7 @@ sessions_timeout = 7 * (24 * 60 * 60)
 pending_timeout = 120
 pass_change_timeout = 5 * 60
 
+
 if not path.exists("data_base"):
     mkdir("data_base")
 
@@ -35,6 +36,10 @@ def clear_captcha_cache():
 
 def generate_session_id() -> str:
     return str(uuid4())
+
+
+def compress(html_string:str):
+    return ''.join([i.strip() for i in html_string.split('\n')])
 
 
 
