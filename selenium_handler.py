@@ -83,7 +83,7 @@ class SeleniumHandler:
             return
 
         except Exception as e:
-            print(f"Could not fetch results: {e}")
+            print(f"⚠️⚠️⚠️Could not fetch results: {e}")
             self.driver.quit()
             yield 'False'
             return

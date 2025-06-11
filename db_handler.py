@@ -262,7 +262,9 @@ class CsvFiles:
     def count(self, username):
         self.cursor.execute("SELECT * FROM files WHERE username = ?", (username, ))
         data = self.cursor.fetchall()
-        return int(data[-1][2].split()[-1])
+        if data:
+            return int(data[-1][2].split()[-1])
+        return 0
     
     
     def fetch(self, username):

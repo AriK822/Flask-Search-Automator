@@ -64,6 +64,7 @@ def csrf_handler():
 
 @app.after_request
 def compress_request(response):
+    if request.endpoint == 'download_html': return response
     if response.content_type.startswith('text/html'):
         response.set_data(compress(response.get_data(as_text=True)))
     return response
@@ -323,39 +324,42 @@ def fetch_results():
     g_session = g.session
     
     def stream_results():
-        if g_session["username"] in active_ips: 
-            yield f"data: {json.dumps({"success":False, "continue": False, "msg": "Pls wait for the last request to be done!", "end":False})}\n\n"
-            return
-        
-        active_ips.add(g_session["username"])
-        yield f"data: {json.dumps({"success":True, "continue": True, "msg": "Started processing..."})}\n\n"
+        try:
+            if g_session["username"] in active_ips: 
+                yield f"data: {json.dumps({"success":False, "continue": False, "msg": "Pls wait for the last request to be done!", "end":False})}\n\n"
+                return
+            
+            active_ips.add(g_session["username"])
+            yield f"data: {json.dumps({"success":True, "continue": True, "msg": "Started processing..."})}\n\n"
 
-        selenium_handler = SeleniumHandler(job, location)
+            selenium_handler = SeleniumHandler(job, location)
 
-        gen = selenium_handler.extract()
-        while True:
-            result = next(gen)
-            if result in ["True", "False"]:
-                break
-            yield result
+            gen = selenium_handler.extract()
+            while True:
+                result = next(gen)
+                if result in ["True", "False"]:
+                    break
+                yield result
 
-        if result == "True":
-            yield f"data: {json.dumps({"success":True, "continue": True, "msg": "Saving data..."})}\n\n"
+            if result == "True":
+                yield f"data: {json.dumps({"success":True, "continue": True, "msg": "Saving data..."})}\n\n"
 
-            csv_handler = CsvFiles()
-            count = csv_handler.count(g_session["username"]) + 1
+                csv_handler = CsvFiles()
+                count = csv_handler.count(g_session["username"]) + 1
 
-            selenium_handler.save_csv(g_session["username"], count)
-            csv_handler.add(g_session["username"], f"{g_session["username"]} {count}", job, location)
+                selenium_handler.save_csv(g_session["username"], count)
+                csv_handler.add(g_session["username"], f"{g_session["username"]} {count}", job, location)
 
-            active_ips.remove(g_session["username"])
-            yield f"data: {json.dumps({"success":True, "continue": False, "msg": f"pp/{g_session["username"]} {count}"})}\n\n"
-            return
+                active_ips.remove(g_session["username"])
+                yield f"data: {json.dumps({"success":True, "continue": False, "msg": f"pp/{g_session["username"]} {count}"})}\n\n"
+                return
 
-        else:
-            active_ips.remove(g_session["username"])
-            yield f"data: {json.dumps({"success":False, "continue": False, "msg": f"Error: Could not fetch results from linkedin.com.", "end":True})}\n\n"
-            return
+            else:
+                active_ips.remove(g_session["username"])
+                yield f"data: {json.dumps({"success":False, "continue": False, "msg": f"Error: Could not fetch results from linkedin.com.", "end":True})}\n\n"
+                return
+        except Exception as e:
+            print(f"\n\n\nCought it!!!{e}\n\n\n")
         
     
     return Response(stream_with_context(stream_results()), mimetype="text/event-stream") #type: ignore
@@ -428,4 +432,4 @@ def page_not_found(e):
     
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=6969, debug=True)
