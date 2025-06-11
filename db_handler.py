@@ -237,6 +237,12 @@ class CsvFiles:
         self.cursor.execute("DELETE FROM files WHERE file_name = ?", (filename, ))
         self.conn.commit()
 
+        if path.exists(f"saved_csv/{filename}.csv"):
+            remove(f"saved_csv/{filename}.csv")
+            return (True, "Deleted successfully!")
+        else:
+            return (False, "File does not exist!")
+
 
     def delete_user(self, username):
         files = self.fetch(username)
@@ -256,7 +262,7 @@ class CsvFiles:
     def count(self, username):
         self.cursor.execute("SELECT * FROM files WHERE username = ?", (username, ))
         data = self.cursor.fetchall()
-        return len(data)
+        return int(data[-1][2].split()[-1])
     
     
     def fetch(self, username):
@@ -497,8 +503,9 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     # handler = CsvFiles()
     # print(handler.fetch("armankiani1384@gmail.com"))
-    key = PassChanger().add("armankiani1384@gmail.com")[1]
-    print(key)
-    print(PassChanger().get(key))
-
+    # key = PassChanger().add("armankiani1384@gmail.com")[1]
+    # print(key)
+    # print(PassChanger().get(key))
+    # CsvFiles().delete_row("3")
+    print(CsvFiles().count("Ari_phone"))
     pass

@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template, jsonify, session, redirect, send_file, g, Response, stream_with_context
-from json import dumps
+import json
 from datetime import timedelta
 from time import time
 from db_handler import *
@@ -298,6 +298,13 @@ def personal_page():
         return render_template("pp.html", user = g.session["username"], token = token, pfp=pfp)
     
 
+@app.route('/pp/delrow', methods=['DELETE'])
+def delete_row():
+    filename = request.get_json()["filename"]
+    result = CsvFiles().delete_row(filename)
+    return jsonify({"msg": result[1], "success": result[0]})
+    
+
 @app.route('/pp/fetch', methods=['GET'])
 def fetch_results():
     token = request.args.get("token")
@@ -317,11 +324,11 @@ def fetch_results():
     
     def stream_results():
         if g_session["username"] in active_ips: 
-            yield f"data: {dumps({"success":False, "continue": False, "msg": "Pls wait for the last request to be done!"})}\n\n"
+            yield f"data: {json.dumps({"success":False, "continue": False, "msg": "Pls wait for the last request to be done!", "end":False})}\n\n"
             return
         
         active_ips.add(g_session["username"])
-        yield f"data: {dumps({"success":True, "continue": True, "msg": "Started processing..."})}\n\n"
+        yield f"data: {json.dumps({"success":True, "continue": True, "msg": "Started processing..."})}\n\n"
 
         selenium_handler = SeleniumHandler(job, location)
 
@@ -333,7 +340,7 @@ def fetch_results():
             yield result
 
         if result == "True":
-            yield f"data: {dumps({"success":True, "continue": True, "msg": "Saving data..."})}\n\n"
+            yield f"data: {json.dumps({"success":True, "continue": True, "msg": "Saving data..."})}\n\n"
 
             csv_handler = CsvFiles()
             count = csv_handler.count(g_session["username"]) + 1
@@ -342,12 +349,12 @@ def fetch_results():
             csv_handler.add(g_session["username"], f"{g_session["username"]} {count}", job, location)
 
             active_ips.remove(g_session["username"])
-            yield f"data: {dumps({"success":True, "continue": False, "msg": f"pp/{g_session["username"]} {count}"})}\n\n"
+            yield f"data: {json.dumps({"success":True, "continue": False, "msg": f"pp/{g_session["username"]} {count}"})}\n\n"
             return
 
         else:
             active_ips.remove(g_session["username"])
-            yield f"data: {dumps({"success":False, "continue": False, "msg": f"Error: Could not fetch results from linkedin.com."})}\n\n"
+            yield f"data: {json.dumps({"success":False, "continue": False, "msg": f"Error: Could not fetch results from linkedin.com.", "end":True})}\n\n"
             return
         
     
@@ -422,4 +429,3 @@ def page_not_found(e):
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5000, debug=True)
-

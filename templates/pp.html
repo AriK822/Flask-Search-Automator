@@ -261,6 +261,22 @@
       from { width: 100%; }
       to { width: 0%; }
     }
+    .trash-img{
+      width: 30px;
+      height: auto;
+      aspect-ratio: 1/1;
+      cursor: pointer;
+      border-radius: 100%;
+      transition: 0.2s linear;
+    }
+    .trash-img:hover{
+      background: #616161;
+      padding:3px;
+      transform: scale(1.2);
+    }
+    .empty-history{
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -289,6 +305,7 @@
         <th>Job</th>
         <th>Location</th>
         <th>Link</th>
+        <th></th>
       </tr>
     </table>
 
@@ -333,6 +350,23 @@
     }
 
 
+    async function delete_row(file_name) {
+      let response = await fetch("/pp/delrow", {
+        method: "DELETE",
+        headers: { "Content-type": "application/json" },
+        body: JSON.stringify({ 
+          token: document.getElementById("csrf-token").innerHTML,
+          filename: file_name,
+        })
+      });
+
+      let result = await response.json();
+      showMessage(result.msg, result.success);
+      if (result.success){load_files();}
+    }
+
+
+    message_box_timer = null;
     function showMessage(text, success=false) {
       const box = document.getElementById('messageBox');
       const content = document.getElementById('messageContent');
@@ -348,9 +382,13 @@
 
       box.classList.add('active');
 
-      setTimeout(() => {
+      if (message_box_timer){clearTimeout(message_box_timer);}
+
+      message_box_timer = setTimeout(() => {
         box.classList.remove('active');
       }, 5000);
+
+      box.addEventListener("mousedown", () => {clearTimeout(message_box_timer); box.classList.remove('active');})
     }
 
 
@@ -364,6 +402,13 @@
       let result = await response.json();
       let data = result.data;
       let view_table = document.getElementById("view_table");
+      view_table.innerHTML = "";
+
+      if (data.length === 0){
+        view_table.innerHTML = "<p class='empty-history'>\
+        Your <span style='color:rgb(237, 175, 66);'><b>search history</b></span> will appear here.</p>";
+        return;
+      }
 
       for (let row_data of data) {
         let row = document.createElement("tr");
@@ -380,9 +425,17 @@
         a.href = "/pp/" + row_data[2];
         link.appendChild(a);
 
+        let del_contaner = document.createElement("td");
+        let del_btn = document.createElement("img");
+        del_btn.src = "static/trash.png";
+        del_btn.className = "trash-img";
+        del_btn.addEventListener("mousedown", () => {delete_row(row_data[2]);})
+        del_contaner.appendChild(del_btn);
+
         row.appendChild(job);
         row.appendChild(loc);
         row.appendChild(link);
+        row.appendChild(del_contaner);
         view_table.appendChild(row);
       }
     }
@@ -408,14 +461,19 @@
           document.getElementById("msg-container").innerText = parsed.msg;
         }
         else {
-          if (parsed.success){window.location.replace(parsed.msg)}
+          if (parsed.success){
+            es.close();
+            window.location.replace(parsed.msg);
+          }
           else {
-            document.getElementById("msg-container").style.color = "#ff5252";
-            document.getElementById("msg-container").style.textShadow = "";
-            document.getElementById("msg-container").style.animation = "";
-            document.getElementById("loading-animation").style.display = "none";
-            document.getElementById("msg-container").style.display = "block";
-            document.getElementById("msg-container").innerText = parsed.msg;
+            if (parsed.end){
+              document.getElementById("msg-container").style.color = "#ff5252";
+              document.getElementById("msg-container").style.textShadow = "";
+              document.getElementById("msg-container").style.animation = "";
+              document.getElementById("loading-animation").style.display = "none";
+              document.getElementById("msg-container").style.display = "block";
+              document.getElementById("msg-container").innerText = parsed.msg;
+            } else {showMessage(parsed.msg)}
             es.close();
           }
         }
