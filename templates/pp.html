@@ -357,6 +357,8 @@
 
   <script>
     load_files();
+    let es = null;
+    stream_process(0);
 
     async function upload_pfp() {
       fileInput = document.getElementById("pfp_input");
@@ -482,44 +484,77 @@
       }
     }
 
+
+    async function stream_process(delay = 1000) {
+      try{
+        if (es != null){return;}
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+        es = new EventSource(`/pp/stream`);
+
+        es.onmessage = (e) => {
+          const parsed = JSON.parse(e.data);
+          if (parsed.continue){
+            document.getElementById("msg-container").style.color = "white";
+            document.getElementById("msg-container").style.textShadow = "0px 0px 15px rgba(255, 255, 255, 0.6)";
+            document.getElementById("loading-animation").style.display = "flex";
+            document.getElementById("msg-container").style.display = "block";
+            document.getElementById("msg-container").style.animation = "loading 1s infinite linear";
+            document.getElementById("msg-container").innerText = parsed.msg;
+          }
+          else {
+            if (parsed.success){
+              window.location.replace(parsed.msg);
+              es.close();
+              es = null;
+            }
+            else {
+              if (parsed.end){
+                document.getElementById("msg-container").style.color = "#ff5252";
+                document.getElementById("msg-container").style.textShadow = "";
+                document.getElementById("msg-container").style.animation = "";
+                document.getElementById("loading-animation").style.display = "none";
+                document.getElementById("msg-container").style.display = "block";
+                document.getElementById("msg-container").innerText = parsed.msg;
+              } else {showMessage(parsed.msg)}
+              es.close();
+              es = null;
+            }
+          }
+        };
+      }
+      catch {
+        es.close();
+        es = null;
+      };
+      es = null;
+    };
+
+
     async function search_job() {
       document.getElementById("msg-container").style.display = "none";
       document.getElementById("loading-animation").style.display = "flex";
 
-      let job = document.getElementById("job").value;
-      let location = document.getElementById("location").value;
-      let token = document.getElementById("csrf-token").innerHTML;
+      let job_ = document.getElementById("job").value;
+      let location_ = document.getElementById("location").value;
+      let token_ = document.getElementById("csrf-token").innerHTML;
 
-      const es = new EventSource(`/pp/fetch?token=${token}&job=${job}&location=${location}`);
+      stream_process();
 
-      es.onmessage = function(e) {
-        const parsed = JSON.parse(e.data);
-        if (parsed.continue){
-          document.getElementById("msg-container").style.color = "white";
-          document.getElementById("msg-container").style.textShadow = "0px 0px 15px rgba(255, 255, 255, 0.6)";
-          document.getElementById("loading-animation").style.display = "flex";
-          document.getElementById("msg-container").style.display = "block";
-          document.getElementById("msg-container").style.animation = "loading 1s infinite linear";
-          document.getElementById("msg-container").innerText = parsed.msg;
-        }
-        else {
-          if (parsed.success){
-            es.close();
-            window.location.replace(parsed.msg);
-          }
-          else {
-            if (parsed.end){
-              document.getElementById("msg-container").style.color = "#ff5252";
-              document.getElementById("msg-container").style.textShadow = "";
-              document.getElementById("msg-container").style.animation = "";
-              document.getElementById("loading-animation").style.display = "none";
-              document.getElementById("msg-container").style.display = "block";
-              document.getElementById("msg-container").innerText = parsed.msg;
-            } else {showMessage(parsed.msg)}
-            es.close();
-          }
-        }
-      };
+      let response = await fetch("/pp/fetch", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ 
+          token: token_,
+          job: job_,
+          location: location_,
+        })
+      });
+
+      let result = await response.json();
+      if (!result.success){showMessage(result.msg);}
+      else {window.location.replace(result.msg);}
+
     }
 
 

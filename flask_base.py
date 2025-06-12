@@ -13,6 +13,7 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 5 * (1024 * 1024)
 app.secret_key = FLASK_APP_SECRET_KEY
 app.permanent_session_lifetime = timedelta(days=7)
+# process_stream
 
 
 @app.before_request
@@ -306,63 +307,70 @@ def delete_row():
     return jsonify({"msg": result[1], "success": result[0]})
     
 
-@app.route('/pp/fetch', methods=['GET'])
+@app.route('/pp/fetch', methods=['POST'])
 def fetch_results():
-    token = request.args.get("token")
-    job = request.args.get("job").strip() # type: ignore
-    location = request.args.get("location").strip() # type: ignore
+    data = request.get_json()
+    job = data['job']
+    location = data["location"]
 
     job = "Software engineer" if job == "" else job
     location = "United States" if location == "" else location
+    
+    if g.session["username"] in active_ips:
+        return jsonify({"success":False, "msg":"Pls wait for the last request to be done!"})
+    
+    active_ips.add(g.session["username"])
+    process_stream[g.session["username"]] = f"data: {json.dumps({"success":True, "continue": True, "msg": "Started processing..."})}\n\n"
 
-    if 'token' not in g.session:
+    selenium_handler = SeleniumHandler(job, location)
+
+    result = selenium_handler.extract(process_stream, g.session["username"])
+
+    if result:
+        process_stream[g.session["username"]] = f"data: {json.dumps({"success":True, "continue": True, "msg": "Saving data..."})}\n\n"
+        sleep(0.55)
+        csv_handler = CsvFiles()
+        count = csv_handler.count(g.session["username"]) + 1
+
+        selenium_handler.save_csv(g.session["username"], count)
+        csv_handler.add(g.session["username"], f"{g.session["username"]} {count}", job, location)
+
+        active_ips.remove(g.session["username"])
+        process_stream[g.session["username"]] = f"data: {json.dumps({"success":True, "continue": False, "msg": f"pp/{g.session["username"]} {count}"})}\n\n"
+        sleep(0.55)
+        process_stream.pop(g.session["username"])
+        return jsonify({"success":True, "msg":f"pp/{g.session["username"]} {count}"})
+
+    else:
+        active_ips.remove(g.session["username"])
+        process_stream[g.session["username"]] = f"data: {json.dumps({"success":False, "continue": False, "msg": f"Error: Could not fetch results from linkedin.com.", "end":True})}\n\n"
+        sleep(0.55)
+        process_stream.pop(g.session["username"])
+        return jsonify({"success":False, "msg":"Error: Could not fetch results from linkedin.com."})
+        
+
+@app.route('/pp/stream', methods=['GET'])
+def stream_pp_fetch():
+    if "username" not in g.session:
         return jsonify()
     
-    if token != g.session["token"]:
-        return jsonify()
+    username = g.session["username"]
     
-    g_session = g.session
+    if username not in process_stream:
+        return jsonify()
     
     def stream_results():
-        try:
-            if g_session["username"] in active_ips: 
-                yield f"data: {json.dumps({"success":False, "continue": False, "msg": "Pls wait for the last request to be done!", "end":False})}\n\n"
-                return
-            
-            active_ips.add(g_session["username"])
-            yield f"data: {json.dumps({"success":True, "continue": True, "msg": "Started processing..."})}\n\n"
+        last_message = process_stream[username]
+        yield last_message
 
-            selenium_handler = SeleniumHandler(job, location)
+        while True:
+            sleep(0.5)
+            if username not in process_stream: return
+            if last_message != process_stream[username]:
+                last_message = process_stream[username]
+                yield last_message
 
-            gen = selenium_handler.extract()
-            while True:
-                result = next(gen)
-                if result in ["True", "False"]:
-                    break
-                yield result
-
-            if result == "True":
-                yield f"data: {json.dumps({"success":True, "continue": True, "msg": "Saving data..."})}\n\n"
-
-                csv_handler = CsvFiles()
-                count = csv_handler.count(g_session["username"]) + 1
-
-                selenium_handler.save_csv(g_session["username"], count)
-                csv_handler.add(g_session["username"], f"{g_session["username"]} {count}", job, location)
-
-                active_ips.remove(g_session["username"])
-                yield f"data: {json.dumps({"success":True, "continue": False, "msg": f"pp/{g_session["username"]} {count}"})}\n\n"
-                return
-
-            else:
-                active_ips.remove(g_session["username"])
-                yield f"data: {json.dumps({"success":False, "continue": False, "msg": f"Error: Could not fetch results from linkedin.com.", "end":True})}\n\n"
-                return
-        except Exception as e:
-            print(f"\n\n\nCought it!!!{e}\n\n\n")
-        
-    
-    return Response(stream_with_context(stream_results()), mimetype="text/event-stream") #type: ignore
+    return Response(stream_with_context(stream_results()), mimetype="text/event-stream")
     
 
 @app.route('/load_files', methods=['POST'])

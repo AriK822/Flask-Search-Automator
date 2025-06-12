@@ -10,6 +10,8 @@ from security import encrypt_code, decrypt_code
 from re import sub, DOTALL
 
 
+
+process_stream = {}
 sessions_timeout = 7 * (24 * 60 * 60)
 pending_timeout = 120
 pass_change_timeout = 5 * 60

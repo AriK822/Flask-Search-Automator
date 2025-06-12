@@ -47,17 +47,17 @@ class SeleniumHandler:
         }"""
 
 
-    def extract(self):
-        yield f"data: {dumps({"success":True, "continue": True, "msg": "Opening browser..."})}\n\n"
+    def extract(self, process_stream, username):
+        process_stream[username] = f"data: {dumps({"success":True, "continue": True, "msg": "Opening browser..."})}\n\n"
         self.driver.get(self.make_link(self.job, self.location))
         try:
-            yield f"data: {dumps({"success":True, "continue": True, "msg": "Loading page..."})}\n\n"
+            process_stream[username] = f"data: {dumps({"success":True, "continue": True, "msg": "Loading page..."})}\n\n"
             wait = WebDriverWait(self.driver, 10)
             job_cards = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.jobs-search__results-list > li")))
 
             cycle = 0
 
-            yield f"data: {dumps({"success":True, "continue": True, "msg": f"Found {len(job_cards)} jobs, Fetching results..."})}\n\n"
+            process_stream[username] = f"data: {dumps({"success":True, "continue": True, "msg": f"Found {len(job_cards)} jobs, Fetching results..."})}\n\n"
             for card in job_cards:
                 try:
                     if cycle == 0:
@@ -79,14 +79,11 @@ class SeleniumHandler:
                     print("Error extracting data:", e)
 
             self.driver.quit()
-            yield 'True'
-            return
+            return True
 
         except Exception as e:
-            print(f"⚠️⚠️⚠️Could not fetch results: {e}")
             self.driver.quit()
-            yield 'False'
-            return
+            return False
 
 
     def save_csv(self, username, name):
