@@ -199,22 +199,47 @@
       50% {opacity: 30%;}
       100% {opacity: 100%;}
     }
-    .pfp_home{
+    .pfp_img{
+      position: absolute;
+      left:0;
+      top:0;
+      width: 100%;
+      height: 100%;
+      transition: 0.2s linear;
+    }
+    .pfp_img:hover{
+      filter:opacity(0.70);
+      transform: scale(1.1);
+    }
+    .pfp_div{
+      position: relative;
       display: flex;
       float: left;
       width: 70px;
       height: auto;
       aspect-ratio: 1/1;
       border-radius: 100%;
+      overflow: hidden;
       margin-right: 23px;
       margin-top: 27px;
       cursor: pointer;
-      transition: 0.2s linear;
+      justify-content: center;
+      background: #626262;
     }
-    .pfp_home:hover{
-      filter:opacity(0.70);
-      transform: scale(1.1);
+    .upload_percent{
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top:0%;
+      left:0;
+      color: #ffffff;
+      background: rgba(0, 0, 0, 0.65);
+      text-align: center;
+      align-content: center;
+      font-size: larger;
+      display: none;
     }
+
     .title-main{
       display: flex;
       float: left;
@@ -281,10 +306,16 @@
 </head>
 <body>
   <div>
-    <img src="{{ url_for('static', filename=pfp) }}" alt="Profile picture" class="pfp_home" onclick="
-      document.getElementById('pfp_input').click()
-    " id="pfp_image">
-    <input id="pfp_input" type="file" accept=".png, .jpg, .jpeg" style="display: none;" onchange="upload_pfp()"/>
+    <div class="pfp_div"> 
+      <img src="{{ url_for('static', filename=pfp) }}" alt="Profile picture" class="pfp_img" onclick="
+        document.getElementById('pfp_input').click()
+      " id="pfp_image">
+
+      <div id="status" class="upload_percent">0%</div>
+
+      <input id="pfp_input" type="file" accept=".png, .jpg, .jpeg" style="display: none;" onchange="upload_pfp()"/>
+    </div>
+
     <h1 class="title-main">Account {{user}}</h1>
   </div>
   <hr />
@@ -338,15 +369,26 @@
       let formData = new FormData();
       formData.append("file", file);
 
-      let response = await fetch("/pp", {
-        method: "POST",
-        headers: {"token" : document.getElementById("csrf-token").innerHTML},
-        body: formData
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/pp");
+      xhr.setRequestHeader("token", document.getElementById("csrf-token").innerHTML);
+
+      xhr.upload.addEventListener("progress", function (e) {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          document.getElementById("status").style.display = 'block';
+          document.getElementById("status").innerText = `${percent}%`;
+        }
       });
 
-      let result = await response.json();
-      showMessage(result.msg, result.success);
-      if (result.success){document.getElementById("pfp_image").src = result.src + "?t=" + new Date().getTime();}
+      xhr.onload = function () {
+        document.getElementById("status").style.display = 'none';
+          const result = JSON.parse(xhr.responseText);
+          showMessage(result.msg, result.success);
+          if (result.success){document.getElementById("pfp_image").src = result.src + "?t=" + new Date().getTime();}
+      };
+
+      xhr.send(formData);
     }
 
 
