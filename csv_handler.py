@@ -4,8 +4,8 @@ from db_handler import clear_cache
 
 
 
-if not path.exists("saved_csv"):
-    mkdir("saved_csv")
+if not path.exists("saved_csv"): mkdir("saved_csv")
+if not path.exists("cache"): mkdir("cache")
 
 
 

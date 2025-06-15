@@ -15,6 +15,7 @@ from PIL import Image
 load_dotenv()
 GMAIL_APP_PASSWORD = getenv('GMAIL_APP_PASSWORD')  
 FLASK_APP_SECRET_KEY = getenv('FLASK_APP_SECRET_KEY')
+DOMAIN_NAME = "http://192.168.1.21:5000/"
 
 active_ips = set()
 ip_tracker = {}
@@ -122,7 +123,7 @@ class EmailSender:
     def send_passchange_link(self, to_email:str, key:str):
         from_email = "kianiarman91@gmail.com"
         password = GMAIL_APP_PASSWORD
-        domain_name = "http://192.168.1.21:5000/"
+        domain_name = DOMAIN_NAME
 
         body = f"""
             <html>
